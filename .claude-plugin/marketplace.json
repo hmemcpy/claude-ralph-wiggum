@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "ralph-wiggum",
-      "source": "..",
+      "source": "./ralph-wiggum",
       "description": "Generate Ralph Wiggum loop infrastructure for iterative AI-driven development",
       "version": "1.0.0"
     }

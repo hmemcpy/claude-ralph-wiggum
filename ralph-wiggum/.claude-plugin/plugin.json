@@ -2,14 +2,9 @@
   "name": "ralph-wiggum",
   "description": "Generate Ralph Wiggum loop infrastructure for iterative AI-driven development",
   "version": "1.0.0",
-  "author": {
-    "name": "Community"
-  },
+  "author": { "name": "Community" },
   "homepage": "https://github.com/ghuntley/how-to-ralph-wiggum",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/hmemcpy/claude-ralph-wiggum"
-  },
+  "repository": "https://github.com/hmemcpy/claude-ralph-wiggum",
   "license": "MIT",
   "keywords": [
     "ralph-wiggum",
