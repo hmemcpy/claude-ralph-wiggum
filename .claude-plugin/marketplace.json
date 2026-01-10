@@ -1,0 +1,15 @@
+{
+  "name": "ralph-wiggum-marketplace",
+  "description": "Ralph Wiggum loop generator for iterative AI-driven development",
+  "owner": {
+    "name": "hmemcpy"
+  },
+  "plugins": [
+    {
+      "name": "ralph-wiggum",
+      "source": ".",
+      "description": "Generate Ralph Wiggum loop infrastructure for iterative AI-driven development",
+      "version": "1.0.0"
+    }
+  ]
+}
