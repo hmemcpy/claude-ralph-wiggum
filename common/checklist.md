@@ -9,8 +9,9 @@ All generated files should be placed in the **project's root folder**.
 5. [ ] Generate `IMPLEMENTATION_PLAN.md` in project root with prioritized tasks
 6. [ ] Generate `PROMPT_plan.md` in project root (customize for agent and directories)
 7. [ ] Generate `PROMPT_build.md` in project root (set correct validation command)
-8. [ ] Verify all files created in project root
-9. [ ] Show next steps (run `ralph build`)
+8. [ ] Generate `loop.sh` in project root (agent-specific CLI invocation)
+9. [ ] Run `chmod +x loop.sh`
+10. [ ] Verify all files created in project root
 
 ## Final Notes
 

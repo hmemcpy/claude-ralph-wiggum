@@ -12,15 +12,3 @@ Thumbs.db
 # Local testing
 .claude/settings.local.json
 node_modules/
-
-# SDK build artifacts
-sdk/dist/
-sdk/node_modules/
-sdk/ralph
-sdk/ralph-*
-*.log
-
-# Test artifacts
-tests/handoff-test/src/
-tests/handoff-test/node_modules/
-bun.lockb

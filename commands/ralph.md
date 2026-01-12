@@ -102,23 +102,23 @@ Customize the template:
 
 ---
 
-### Step 6: Show Next Steps
+### Step 6: Generate `loop.sh`
 
-After generating all files, display:
+Based on `AGENT_TYPE`, use the appropriate loop script:
 
-```
-✓ Ralph infrastructure generated!
+**For Amp** (`AGENT_TYPE=amp`):
+@agents/amp/loop.sh
 
-Next steps:
-  ralph build     # Execute tasks from the plan
-  ralph auto      # Re-plan then build (if specs changed)
-  ralph --help    # Show all options
-```
+**For Claude** (`AGENT_TYPE=claude`):
+@agents/claude/loop.sh
 
-**Note**: The `ralph` binary must be installed. If not available, tell the user:
-```
-Install ralph: cd ~/.config/agents/skills/ralph-wiggum/sdk && bun install && bun run compile && cp ralph ~/.local/bin/
-```
+Write the script to `loop.sh` in the project root.
+
+---
+
+### Step 7: Make Executable
+
+Run: `chmod +x loop.sh`
 
 ---
 

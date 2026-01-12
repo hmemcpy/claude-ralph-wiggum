@@ -23,6 +23,7 @@ All files are generated in the **project's root folder**:
 | `IMPLEMENTATION_PLAN.md` | Prioritized task list |
 | `PROMPT_plan.md` | Planning mode instructions |
 | `PROMPT_build.md` | Building mode instructions |
+| `loop.sh` | The bash loop script |
 
 ## Usage
 
@@ -31,13 +32,6 @@ Provide a path to a feature document, or let it auto-discover in `docs/`:
 ```
 /skill ralph docs/my-feature.md
 /skill ralph
-```
-
-After the skill generates the files, run the ralph binary:
-
-```bash
-ralph build     # Execute tasks from the plan
-ralph auto      # Re-plan then build
 ```
 
 ## Amp-Specific Features
