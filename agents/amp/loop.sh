@@ -4,9 +4,9 @@
 # Reference: https://github.com/ghuntley/how-to-ralph-wiggum
 #
 # Features:
-#   - Uses Amp CLI
+#   - Uses Amp CLI with --execute and --stream-json
 #   - Automatic error detection and recovery
-#   - Graceful retry after failures
+#   - Graceful retry after rate limits
 #
 # Usage:
 #   ./loop.sh           # Auto mode: plan first, then build (default)
@@ -20,6 +20,7 @@ set -e
 MODE="plan"
 AUTO_MODE=true
 MAX_ITERATIONS=0
+MAX_PLAN_ITERATIONS=3
 ITERATION=0
 CONSECUTIVE_FAILURES=0
 MAX_CONSECUTIVE_FAILURES=3
@@ -62,6 +63,32 @@ switch_to_build_mode() {
   ITERATION=0  # Reset iteration counter for build phase
 }
 
+# Calculate seconds until next hour boundary
+seconds_until_next_hour() {
+  local now=$(date +%s)
+  local current_minute=$(date +%M)
+  local current_second=$(date +%S)
+  local seconds_past_hour=$((10#$current_minute * 60 + 10#$current_second))
+  local seconds_until=$((3600 - seconds_past_hour))
+  echo $seconds_until
+}
+
+# Calculate seconds until specific reset time (e.g., midnight UTC, 5am local)
+seconds_until_daily_reset() {
+  # Assuming daily reset at 5:00 AM local time (adjust as needed)
+  local reset_hour=5
+  local now=$(date +%s)
+  local today_reset=$(date -v${reset_hour}H -v0M -v0S +%s 2>/dev/null || date -d "today ${reset_hour}:00:00" +%s)
+
+  if [[ $now -ge $today_reset ]]; then
+    # Reset already passed today, calculate for tomorrow
+    local tomorrow_reset=$((today_reset + 86400))
+    echo $((tomorrow_reset - now))
+  else
+    echo $((today_reset - now))
+  fi
+}
+
 # Display countdown timer
 countdown() {
   local seconds=$1
@@ -88,13 +115,23 @@ is_recoverable_error() {
     return 0
   fi
 
+  # Check for API rate_limit_error (JSON format)
+  if [[ "$output" =~ \"type\":\"rate_limit_error\" ]]; then
+    return 0
+  fi
+
+  # Check for API overloaded_error (JSON format)
+  if [[ "$output" =~ \"type\":\"overloaded_error\" ]]; then
+    return 0
+  fi
+
   # Check for API overload
   if [[ "$output" =~ "overloaded" ]] || [[ "$output" =~ "503" ]] || [[ "$output" =~ "529" ]]; then
     return 0
   fi
 
   # Check for HTTP 429
-  if [[ "$output" =~ "429" ]]; then
+  if [[ "$output" =~ "429" ]] || [[ "$output" =~ Error:\ 429 ]] || [[ "$output" =~ Error:\ 529 ]]; then
     return 0
   fi
 
@@ -104,6 +141,21 @@ is_recoverable_error() {
 # Determine sleep duration based on error type
 get_sleep_duration() {
   local output="$1"
+
+  # Try to extract reset time from JSON payload (resetsAt field)
+  local json_reset=$(echo "$output" | grep -oE '"resetsAt"\s*:\s*"[^"]+"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+  if [[ -n "$json_reset" ]]; then
+    local reset_epoch=$(date -jf "%Y-%m-%dT%H:%M:%S%z" "$json_reset" +%s 2>/dev/null || \
+                        date -d "$json_reset" +%s 2>/dev/null)
+    if [[ -n "$reset_epoch" ]]; then
+      local now=$(date +%s)
+      local diff=$((reset_epoch - now))
+      if [[ $diff -gt 0 ]]; then
+        echo $((diff + 60))  # Add 1 minute buffer
+        return
+      fi
+    fi
+  fi
 
   # Try to extract retry-after from output
   if [[ "$output" =~ retry.after[[:space:]]*:?[[:space:]]*([0-9]+) ]]; then
@@ -119,6 +171,12 @@ get_sleep_duration() {
 
   if [[ "$output" =~ "try again in "([0-9]+)" hour" ]]; then
     echo $(( ${BASH_REMATCH[1]} * 3600 + 60 ))
+    return
+  fi
+
+  # Check for daily limit
+  if [[ "$output" =~ (daily|day|24.?hour) ]]; then
+    seconds_until_daily_reset
     return
   fi
 
@@ -162,8 +220,9 @@ echo "---"
 while true; do
   ITERATION=$((ITERATION + 1))
   echo ""
+  MODE_DISPLAY=$(echo "$MODE" | tr '[:lower:]' '[:upper:]')
   if [[ "$AUTO_MODE" == true ]]; then
-    echo -e "${GREEN}=== ${MODE^} Iteration $ITERATION ===${NC}"
+    echo -e "${GREEN}=== ${MODE_DISPLAY} Iteration $ITERATION ===${NC}"
   else
     echo -e "${GREEN}=== Iteration $ITERATION ===${NC}"
   fi
@@ -172,9 +231,14 @@ while true; do
   TEMP_OUTPUT=$(mktemp)
   set +e
 
-  # Run Amp with prompt from file
-  # --yes: auto-approve tool calls
-  amp prompt --file "$PROMPT_FILE" --yes 2>&1 | tee "$TEMP_OUTPUT"
+  # Run Amp in execute mode with stream-json output (Claude Code compatible)
+  # -x: non-interactive execute mode
+  # --stream-json: output in Claude Code-compatible stream JSON format
+  # --dangerously-allow-all: auto-approve tool calls
+  amp -x \
+    --dangerously-allow-all \
+    --stream-json \
+    < "$PROMPT_FILE" 2>&1 | tee "$TEMP_OUTPUT" | jq -r 'select(.type == "assistant") | .message.content[]?.text // empty' 2>/dev/null
 
   EXIT_CODE=$?
   OUTPUT=$(cat "$TEMP_OUTPUT")
@@ -221,6 +285,16 @@ while true; do
   fi
 
   # Max iterations check
+  if [[ "$MODE" == "plan" && $ITERATION -ge $MAX_PLAN_ITERATIONS ]]; then
+    echo ""
+    echo -e "${YELLOW}Reached max plan iterations ($MAX_PLAN_ITERATIONS). Switching to build mode.${NC}"
+    if [[ "$AUTO_MODE" == true ]]; then
+      switch_to_build_mode
+      continue
+    fi
+    break
+  fi
+
   if [[ $MAX_ITERATIONS -gt 0 && $ITERATION -ge $MAX_ITERATIONS ]]; then
     if [[ "$AUTO_MODE" == true && "$MODE" == "plan" ]]; then
       switch_to_build_mode

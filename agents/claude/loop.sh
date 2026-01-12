@@ -20,6 +20,7 @@ set -e
 MODE="plan"
 AUTO_MODE=true
 MAX_ITERATIONS=0
+MAX_PLAN_ITERATIONS=3
 ITERATION=0
 CONSECUTIVE_FAILURES=0
 MAX_CONSECUTIVE_FAILURES=3
@@ -297,6 +298,16 @@ while true; do
   fi
 
   # Max iterations check
+  if [[ "$MODE" == "plan" && $ITERATION -ge $MAX_PLAN_ITERATIONS ]]; then
+    echo ""
+    echo -e "${YELLOW}Reached max plan iterations ($MAX_PLAN_ITERATIONS). Switching to build mode.${NC}"
+    if [[ "$AUTO_MODE" == true ]]; then
+      switch_to_build_mode
+      continue
+    fi
+    break
+  fi
+
   if [[ $MAX_ITERATIONS -gt 0 && $ITERATION -ge $MAX_ITERATIONS ]]; then
     if [[ "$AUTO_MODE" == true && "$MODE" == "plan" ]]; then
       switch_to_build_mode
