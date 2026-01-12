@@ -11,3 +11,4 @@ Thumbs.db
 
 # Local testing
 .claude/settings.local.json
+node_modules/

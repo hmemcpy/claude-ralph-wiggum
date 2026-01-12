@@ -1,0 +1,13 @@
+{
+  "name": "ralph-handoff-test",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "ralph": "bun run ralph.ts",
+    "plan": "bun run ralph.ts plan",
+    "build": "bun run ralph.ts build"
+  },
+  "dependencies": {
+    "@sourcegraph/amp-sdk": "latest"
+  }
+}
