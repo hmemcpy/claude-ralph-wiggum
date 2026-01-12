@@ -7,66 +7,101 @@ description: Generate the complete Ralph Wiggum loop infrastructure for iterativ
 
 Generate the complete Ralph Wiggum loop infrastructure for iterative AI-driven development.
 
-## Versions
+## Ralph 2.0 (Recommended)
 
-### Ralph 2.0 (Recommended) - SDK-Based
+Uses the Amp SDK for programmatic thread orchestration with native thread map integration.
 
-Uses the Amp SDK for programmatic thread orchestration.
+### Quick Start
 
 ```bash
-# Install
-cd sdk && bun install
+# Navigate to SDK directory
+cd ~/.config/agents/skills/ralph-wiggum/sdk
 
-# Run
-bun run src/cli.ts plan      # Create implementation plan
-bun run src/cli.ts build     # Execute tasks
-bun run src/cli.ts auto      # Plan then build
+# Install dependencies (first time only)
+bun install
+
+# Run on your project
+bun run src/cli.ts auto -p /path/to/project --validation "pnpm run check"
 ```
 
-**Benefits:**
-- Native Amp thread management
-- Thread URLs tracked in plan file
-- TypeScript-based, npm-installable
-- Proper error handling and recovery
+### Commands
 
-See [sdk/README.md](sdk/README.md) for details.
+```bash
+bun run src/cli.ts plan      # Create implementation plan from specs
+bun run src/cli.ts build     # Execute tasks from plan
+bun run src/cli.ts auto      # Plan then build (recommended)
+bun run src/cli.ts --help    # Show all options
+```
 
-### Ralph 1.0 (Legacy) - Bash Loop
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Thread Map** | Build threads link to coordinator via URL mentions |
+| **Clean Context** | Each thread reads only plan + specs (no pollution) |
+| **Thread Tracking** | Thread IDs recorded in `IMPLEMENTATION_PLAN.md` |
+| **Dependency Aware** | Respects `depends_on` task ordering |
+| **Error Recovery** | Handles consecutive failures gracefully |
+
+### How It Works
+
+1. **Planning Phase**: Creates `IMPLEMENTATION_PLAN.md` from specs
+2. **Build Phase**: For each task:
+   - Spawns Amp thread with focused instructions
+   - Includes coordinator URL (creates thread map link)
+   - Implements, validates, commits
+   - Updates plan with thread ID
+3. **Validation Phase**: Final checks, outputs `RALPH_COMPLETE`
+
+### Thread Map Visualization
+
+All threads appear connected in Amp's Thread Map (`threads: map`):
+
+```
+    Coordinator (Plan)
+         │
+         ├── Build P0.1
+         ├── Build P1.1
+         └── Build P2.1
+```
+
+See [sdk/README.md](sdk/README.md) for full documentation.
+
+---
+
+## Ralph 1.0 (Legacy)
 
 Traditional bash-based loop that restarts Amp for each iteration.
 
+### Usage
+
 ```bash
+# Generate loop files
+/skill ralph docs/my-feature.md
+
+# Run the loop
 ./loop.sh           # Auto mode: plan first, then build
 ./loop.sh plan      # Planning mode only
 ./loop.sh build     # Build mode only
 ```
 
-## When to Use
-
-- When starting a new feature that needs iterative AI development
-- When you want to set up autonomous development loops
-- When you need to generate specs and implementation plans from feature docs
-
-## What It Creates
-
-All files are generated in the **project's root folder**:
+### Generated Files
 
 | File | Purpose |
 |------|---------|
 | `specs/*.md` | Feature specs (one topic per file) |
-| `IMPLEMENTATION_PLAN.md` | Prioritized task list with thread tracking |
-| `PROMPT_plan.md` | Planning mode instructions (v1) |
-| `PROMPT_build.md` | Building mode instructions (v1) |
-| `loop.sh` | The bash loop script (v1) |
+| `IMPLEMENTATION_PLAN.md` | Prioritized task list |
+| `PROMPT_plan.md` | Planning mode instructions |
+| `PROMPT_build.md` | Building mode instructions |
+| `loop.sh` | The bash loop script |
 
-## Usage
+---
 
-Provide a path to a feature document, or let it auto-discover in `docs/`:
+## When to Use Ralph
 
-```
-/skill ralph docs/my-feature.md
-/skill ralph
-```
+- Starting a new feature that needs iterative AI development
+- Setting up autonomous development loops
+- Generating specs and implementation plans from feature docs
 
 ## IMPLEMENTATION_PLAN.md Format
 
@@ -91,9 +126,8 @@ Provide a path to a feature document, or let it auto-discover in `docs/`:
   - depends_on: P0.1
 ```
 
-## Amp-Specific Features
+## Amp Tools Used
 
-This skill leverages Amp's unique tools:
 - **Oracle**: For planning, gap analysis, and debugging
 - **Librarian**: For reading library documentation
 - **finder**: For semantic codebase search
