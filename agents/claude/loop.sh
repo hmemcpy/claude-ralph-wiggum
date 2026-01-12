@@ -253,8 +253,13 @@ while true; do
     --output-format stream-json \
     --verbose \
     <<< "$(cat "$PROMPT_FILE")" 2>&1 | tee "$TEMP_OUTPUT" | jq -r '
-      if .type == "result" then
-        "--- Done (" + (.duration_ms | tostring) + "ms, " + (.num_turns | tostring) + " turns) ---\n" + .result
+      if .type == "assistant" then
+        .message.content[] |
+        if .type == "text" then .text
+        elif .type == "tool_use" then "    [" + .name + "]"
+        else empty end
+      elif .type == "result" then
+        "--- " + ((.duration_ms / 1000 * 10 | floor / 10) | tostring) + "s, " + (.num_turns | tostring) + " turns ---"
       else empty end
     ' 2>/dev/null
 

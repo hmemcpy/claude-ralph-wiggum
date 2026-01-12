@@ -28,7 +28,7 @@ Two modes:
 | Agent | CLI Command | Key Features |
 |-------|-------------|--------------|
 | **Claude Code** | `claude -p` | Parallel subagents, Opus reasoning, Ultrathink |
-| **Amp** | `amp prompt` | Oracle (planning/debug), Librarian (docs), finder (semantic search) |
+| **Amp** | `amp -x` | Oracle (planning/debug), Librarian (docs), finder (semantic search) |
 
 The plugin auto-detects which agent is running and generates appropriate files.
 
@@ -115,14 +115,24 @@ chmod +x loop.sh
 ./loop.sh build 5
 ```
 
+## Loop Features
+
+Both loop scripts include:
+
+- **Auto mode**: Runs planning first, then switches to build mode automatically
+- **Rate limit handling**: Detects API limits and waits with countdown timer
+- **Error recovery**: Retries on transient failures (max 3 consecutive)
+- **Plan iteration cap**: Maximum 3 planning iterations before switching to build
+- **JSON streaming**: Uses `--stream-json` for structured output
+- **Completion detection**: Exits when agent outputs `RALPH_COMPLETE`
+
 ## Agent-Specific Features
 
 ### Claude Code
 
 - **Parallel subagents**: Up to 500 for searches/reads, 10 for analysis
-- **Opus subagents**: Complex reasoning during implementation
+- **Opus model**: Complex reasoning during implementation
 - **Ultrathink**: Deep reasoning before finalizing priorities
-- **Usage limit handling**: Auto-detects rate limits and waits with countdown
 
 ### Amp
 
@@ -170,6 +180,7 @@ ralph-wiggum/
 │       ├── prompt-build.md
 │       └── loop.sh
 ├── SKILL.md                # Root skill (for compatibility)
+├── update-local.sh         # Sync to local installations
 └── README.md
 ```
 
@@ -187,6 +198,7 @@ ralph-wiggum/
 
 - An AI coding agent (Claude Code or Amp)
 - A project with tests/linting (for backpressure)
+- `jq` installed (for JSON output parsing)
 
 ## Security Warning
 

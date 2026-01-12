@@ -105,36 +105,8 @@ countdown() {
   printf "\r%-80s\r" " "  # Clear the line
 }
 
-# Check if error indicates recoverable error
+# Check if error indicates recoverable error (currently disabled for Amp)
 is_recoverable_error() {
-  local output="$1"
-  local exit_code="$2"
-
-  # Check for rate limit patterns
-  if [[ "$output" =~ "rate limit" ]] || [[ "$output" =~ "Rate limit" ]]; then
-    return 0
-  fi
-
-  # Check for API rate_limit_error (JSON format)
-  if [[ "$output" =~ \"type\":\"rate_limit_error\" ]]; then
-    return 0
-  fi
-
-  # Check for API overloaded_error (JSON format)
-  if [[ "$output" =~ \"type\":\"overloaded_error\" ]]; then
-    return 0
-  fi
-
-  # Check for API overload
-  if [[ "$output" =~ "overloaded" ]] || [[ "$output" =~ "503" ]] || [[ "$output" =~ "529" ]]; then
-    return 0
-  fi
-
-  # Check for HTTP 429
-  if [[ "$output" =~ "429" ]] || [[ "$output" =~ Error:\ 429 ]] || [[ "$output" =~ Error:\ 529 ]]; then
-    return 0
-  fi
-
   return 1
 }
 
@@ -239,8 +211,33 @@ while true; do
     --dangerously-allow-all \
     --stream-json \
     < "$PROMPT_FILE" 2>&1 | tee "$TEMP_OUTPUT" | jq -r '
-      if .type == "result" then
-        "--- Done (" + (.duration_ms | tostring) + "ms, " + (.num_turns | tostring) + " turns) ---\n" + .result
+      def tool_info:
+        if .name == "edit_file" or .name == "create_file" or .name == "Read" then
+          (.input.path | split("/") | last | .[0:40])
+        elif .name == "todo_write" then
+          ((.input.todos // []) | map(.content) | join(", ") | .[0:60])
+        elif .name == "Bash" then
+          (.input.cmd | split("\n") | first | .[0:50])
+        elif .name == "Grep" then
+          (.input.pattern | .[0:30])
+        elif .name == "glob" then
+          (.input.filePattern | .[0:30])
+        elif .name == "finder" then
+          (.input.query | .[0:40])
+        elif .name == "oracle" then
+          (.input.task | .[0:40])
+        elif .name == "Task" then
+          (.input.description // .input.prompt | .[0:40])
+        else null end;
+      if .type == "assistant" then
+        .message.content[] |
+        if .type == "text" then
+          if (.text | split("\n") | length) <= 3 then .text else empty end
+        elif .type == "tool_use" then
+          "    [" + .name + "]" + (tool_info | if . then " " + . else "" end)
+        else empty end
+      elif .type == "result" then
+        "--- " + ((.duration_ms / 1000 * 10 | floor / 10) | tostring) + "s, " + (.num_turns | tostring) + " turns ---"
       else empty end
     ' 2>/dev/null
 
