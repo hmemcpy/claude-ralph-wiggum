@@ -4,19 +4,50 @@ Generate the complete [Ralph Wiggum loop](https://github.com/ghuntley/how-to-ral
 
 ## What is Ralph?
 
-An iterative AI development loop where a dumb bash script keeps restarting the AI agent, and the agent figures out what to do next by reading the plan file each time.
+An iterative AI development loop where tasks are executed one at a time, with the agent figuring out what to do next by reading the plan file.
+
+### Ralph 2.0 (Amp SDK) - Recommended
+
+Uses the Amp SDK for programmatic thread orchestration with native thread map integration:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    OUTER LOOP (bash)                    │
-│          while :; do $AGENT < PROMPT.md ; done          │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    RALPH ORCHESTRATOR                        │
+│  TypeScript CLI using @sourcegraph/amp-sdk                  │
+└─────────────────────────────────────────────────────────────┘
+         │
+         ├──▶ Thread: Planning (create plan from specs)
+         │
+         ├──▶ Thread: Build P0.1 ──┐
+         ├──▶ Thread: Build P0.2   │ Connected in Thread Map
+         │    ...                 ──┘
+         │
+         └──▶ Thread: Validation (final checks)
+```
+
+**Key features:**
+- Native Amp thread management
+- Thread map connectivity via URL mentions (no context pollution)
+- Clean context per task
+- Thread IDs tracked in `IMPLEMENTATION_PLAN.md`
+
+See [sdk/README.md](sdk/README.md) for details.
+
+### Ralph 1.0 (Bash Loop) - Legacy
+
+A dumb bash script keeps restarting the AI agent:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    OUTER LOOP (bash)                        │
+│          while :; do $AGENT < PROMPT.md ; done              │
+└─────────────────────────────────────────────────────────────┘
                            │
                            ▼
-┌─────────────────────────────────────────────────────────┐
-│                   INNER LOOP (agent)                    │
-│   Read plan → Pick task → Implement → Test → Commit     │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                   INNER LOOP (agent)                        │
+│   Read plan → Pick task → Implement → Test → Commit         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 Two modes:
@@ -25,78 +56,67 @@ Two modes:
 
 ## Supported Agents
 
-| Agent | CLI Command | Key Features |
-|-------|-------------|--------------|
-| **Claude Code** | `claude -p` | Parallel subagents, Opus reasoning, Ultrathink |
-| **Amp** | `amp -x` | Oracle (planning/debug), Librarian (docs), finder (semantic search) |
-
-The plugin auto-detects which agent is running and generates appropriate files.
+| Agent | Ralph 2.0 (SDK) | Ralph 1.0 (Bash) |
+|-------|-----------------|------------------|
+| **Amp** | ✅ `bun run sdk/src/cli.ts` | ✅ `./loop.sh` |
+| **Claude Code** | ❌ | ✅ `./loop.sh` |
 
 ## Installation
 
-### Claude Code
+### Amp - Ralph 2.0 (SDK)
 
-#### Direct Install from GitHub
 ```bash
-# In Claude Code interactive mode:
-/plugin install https://github.com/hmemcpy/ralph-wiggum
+# Clone and install
+git clone https://github.com/hmemcpy/ralph-wiggum
+cd ralph-wiggum/sdk
+bun install
+
+# Run
+bun run src/cli.ts --help
+bun run src/cli.ts auto -p /path/to/project --validation "pnpm run check"
 ```
 
-#### Manual Installation (User-Global)
-```bash
-git clone https://github.com/hmemcpy/ralph-wiggum ~/.ralph-wiggum
+### Amp - Ralph 1.0 (Skill)
 
-# In Claude Code:
-/plugin install ~/.ralph-wiggum --scope user
-```
-
-#### Manual Installation (Project-Local)
-```bash
-git clone https://github.com/hmemcpy/ralph-wiggum .ralph-wiggum
-
-# In Claude Code:
-/plugin install .ralph-wiggum --scope local
-```
-
-### Amp
-
-#### Install from GitHub
 ```bash
 # Install the ralph skill
 amp skill add hmemcpy/ralph-wiggum/ralph
+
+# Use
+/skill ralph docs/my-feature.md
 ```
 
-#### Manual Installation
+### Claude Code
+
 ```bash
-# Clone to skills directory
-git clone https://github.com/hmemcpy/ralph-wiggum ~/.config/agents/skills/ralph-wiggum
+# In Claude Code interactive mode:
+/plugin install https://github.com/hmemcpy/ralph-wiggum
+
+# Use
+/ralph-wiggum:ralph docs/my-feature.md
 ```
 
 ## Usage
 
-### Claude Code
+### Ralph 2.0 (SDK)
+
 ```bash
-/ralph-wiggum:ralph docs/my-feature.md
-/ralph-wiggum:ralph
+cd sdk
+
+# Auto mode: plan then build
+bun run src/cli.ts auto -p /path/to/project
+
+# Plan only
+bun run src/cli.ts plan -p /path/to/project
+
+# Build only (requires existing IMPLEMENTATION_PLAN.md)
+bun run src/cli.ts build -p /path/to/project
+
+# With options
+bun run src/cli.ts build -v --validation "pnpm run check"
 ```
 
-### Amp
-```bash
-/skill ralph docs/my-feature.md
-/skill ralph
-```
-
-The command generates all files in the **project's root folder**:
-
-| File | Purpose |
-|------|---------|
-| `specs/*.md` | Feature specs (one topic per file) |
-| `IMPLEMENTATION_PLAN.md` | Prioritized task list |
-| `PROMPT_plan.md` | Planning mode instructions (agent-optimized) |
-| `PROMPT_build.md` | Building mode instructions (agent-optimized) |
-| `loop.sh` | The bash loop script (agent-specific CLI) |
-
-## Running the Loop
+### Ralph 1.0 (Bash)
 
 ```bash
 chmod +x loop.sh
@@ -112,35 +132,40 @@ chmod +x loop.sh
 
 # Limit iterations
 ./loop.sh 10
-./loop.sh build 5
 ```
 
-## Loop Features
+## Generated Files
 
-Both loop scripts include:
+| File | Purpose |
+|------|---------|
+| `specs/*.md` | Feature specs (one topic per file) |
+| `IMPLEMENTATION_PLAN.md` | Prioritized task list with thread tracking |
+| `PROMPT_plan.md` | Planning mode instructions (v1 only) |
+| `PROMPT_build.md` | Building mode instructions (v1 only) |
+| `loop.sh` | The bash loop script (v1 only) |
 
-- **Auto mode**: Runs planning first, then switches to build mode automatically
-- **Rate limit handling**: Detects API limits and waits with countdown timer
-- **Error recovery**: Retries on transient failures (max 3 consecutive)
-- **Plan iteration cap**: Maximum 3 planning iterations before switching to build
-- **JSON streaming**: Uses `--stream-json` for structured output
-- **Completion detection**: Exits when agent outputs `RALPH_COMPLETE`
+## IMPLEMENTATION_PLAN.md Format
 
-## Agent-Specific Features
+```markdown
+# Implementation Plan
 
-### Claude Code
+## Tasks
 
-- **Parallel subagents**: Up to 500 for searches/reads, 10 for analysis
-- **Opus model**: Complex reasoning during implementation
-- **Ultrathink**: Deep reasoning before finalizing priorities
+### P0: Core (must have)
 
-### Amp
+- [ ] P0.1 Create user model
+  - scope: src/models/user.ts
+  - validation: npm run check
+  - assigned_thread: T-xxx (filled by Ralph 2.0)
+  - status: not_started
 
-- **Oracle**: Architecture review, planning decisions, debugging
-- **Librarian**: Read library documentation, understand APIs
-- **finder**: Semantic codebase search (not just text matching)
-- **Task**: Parallel subagent work for independent operations
-- **todo_write**: Track progress within each iteration
+- [ ] P0.2 Add user API
+  - scope: src/api/users.ts
+  - validation: npm run check
+  - assigned_thread:
+  - status: not_started
+  - depends_on: P0.1
+```
 
 ## Core Principles
 
@@ -149,56 +174,52 @@ Both loop scripts include:
 3. **Backpressure** - Tests must pass before commit
 4. **Plan Disposability** - Regenerate when off-track
 5. **Search First** - Don't assume not implemented
-6. **Let Ralph Ralph** - Agent determines approach
+6. **Clean Context** - No inherited cruft between tasks
 
 ## Project Structure
 
 ```
 ralph-wiggum/
-├── .claude-plugin/
-│   └── plugin.json         # Claude Code plugin manifest
-├── commands/
-│   └── ralph.md            # Main slash command (Claude Code)
-├── skills/
-│   └── ralph/
-│       └── SKILL.md        # Amp skill definition
-├── common/                 # Shared components
-│   ├── what-is-ralph.md
-│   ├── principles.md
-│   ├── spec-format.md
-│   ├── plan-format.md
-│   └── checklist.md
-├── agents/                 # Agent-specific templates
+├── sdk/                    # Ralph 2.0 - TypeScript SDK orchestrator
+│   ├── src/
+│   │   ├── cli.ts
+│   │   ├── orchestrator.ts
+│   │   ├── plan-parser.ts
+│   │   ├── prompts.ts
+│   │   └── types.ts
+│   ├── package.json
+│   └── README.md
+├── agents/                 # Ralph 1.0 - Agent-specific templates
 │   ├── claude/
-│   │   ├── tools.md
 │   │   ├── prompt-plan.md
 │   │   ├── prompt-build.md
 │   │   └── loop.sh
 │   └── amp/
-│       ├── tools.md
 │       ├── prompt-plan.md
 │       ├── prompt-build.md
 │       └── loop.sh
-├── SKILL.md                # Root skill (for compatibility)
-├── update-local.sh         # Sync to local installations
+├── common/                 # Shared documentation
+├── commands/               # Claude Code plugin commands
+├── skills/                 # Amp skill definitions
+├── SKILL.md
 └── README.md
 ```
 
-## Adding Support for New Agents
+## Comparison
 
-1. Create a new directory under `agents/` (e.g., `agents/codex/`)
-2. Add agent-specific files:
-   - `tools.md` - Tool guidance for this agent
-   - `prompt-plan.md` - Planning mode prompt template
-   - `prompt-build.md` - Building mode prompt template
-   - `loop.sh` - CLI-specific loop script
-3. Update detection logic in `commands/ralph.md`
+| Aspect | Ralph 2.0 (SDK) | Ralph 1.0 (Bash) |
+|--------|-----------------|------------------|
+| Driver | TypeScript + Amp SDK | Bash loop + CLI |
+| Thread mgmt | Native, tracked in plan | External, disconnected |
+| Thread map | Coordinator → child links | No connections |
+| Context | Clean, explicit per task | Lost between iterations |
+| Agents | Amp only | Amp, Claude Code |
 
 ## Requirements
 
-- An AI coding agent (Claude Code or Amp)
+- **Ralph 2.0**: Bun, Amp account
+- **Ralph 1.0**: AI coding agent (Claude Code or Amp), `jq`
 - A project with tests/linting (for backpressure)
-- `jq` installed (for JSON output parsing)
 
 ## Security Warning
 
