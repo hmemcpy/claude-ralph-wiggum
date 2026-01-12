@@ -251,7 +251,12 @@ while true; do
     --dangerously-skip-permissions \
     --model opus \
     --output-format stream-json \
-    <<< "$(cat "$PROMPT_FILE")" 2>&1 | tee "$TEMP_OUTPUT" | jq -r 'select(.type == "assistant") | .message.content[]?.text // empty' 2>/dev/null
+    --verbose \
+    <<< "$(cat "$PROMPT_FILE")" 2>&1 | tee "$TEMP_OUTPUT" | jq -r '
+      if .type == "result" then
+        "--- Done (" + (.duration_ms | tostring) + "ms, " + (.num_turns | tostring) + " turns) ---\n" + .result
+      else empty end
+    ' 2>/dev/null
 
   EXIT_CODE=$?
   OUTPUT=$(cat "$TEMP_OUTPUT")

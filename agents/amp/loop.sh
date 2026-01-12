@@ -231,14 +231,18 @@ while true; do
   TEMP_OUTPUT=$(mktemp)
   set +e
 
-  # Run Amp in execute mode with stream-json output (Claude Code compatible)
+  # Run Amp in execute mode with stream-json output
   # -x: non-interactive execute mode
   # --stream-json: output in Claude Code-compatible stream JSON format
   # --dangerously-allow-all: auto-approve tool calls
   amp -x \
     --dangerously-allow-all \
     --stream-json \
-    < "$PROMPT_FILE" 2>&1 | tee "$TEMP_OUTPUT" | jq -r 'select(.type == "assistant") | .message.content[]?.text // empty' 2>/dev/null
+    < "$PROMPT_FILE" 2>&1 | tee "$TEMP_OUTPUT" | jq -r '
+      if .type == "result" then
+        "--- Done (" + (.duration_ms | tostring) + "ms, " + (.num_turns | tostring) + " turns) ---\n" + .result
+      else empty end
+    ' 2>/dev/null
 
   EXIT_CODE=$?
   OUTPUT=$(cat "$TEMP_OUTPUT")
