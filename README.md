@@ -78,9 +78,13 @@ The skill will:
 ### Claude Code
 
 ```bash
-/ralph-wiggum:ralph docs/my-feature.md
-/ralph-wiggum:ralph
+/ralph-wiggum:ralph [optional/path/to/plan.md]
 ```
+
+The command will:
+1. Ask 3-5 clarifying questions (A/B/C/D format — respond with "1A, 2C, 3B")
+2. Optionally run deep analysis with Opus subagents
+3. Generate all files
 
 ## Running the Loop
 
@@ -125,9 +129,7 @@ ralph-wiggum/
 │   └── ralph/
 │       └── SKILL.md        # Amp skill (unified planning + generation)
 ├── commands/
-│   └── ralph.md            # Claude Code slash command
-├── agents/
-│   └── claude/             # Claude Code templates
+│   └── ralph.md            # Claude Code command (unified planning + generation)
 ├── common/                 # Shared components
 ├── SKILL.md                # Root skill
 ├── install.sh              # Install to ~/.config/agents/skills/
