@@ -16,81 +16,57 @@ Generate specs, implementation plans, and loop infrastructure for iterative AI-d
 
 ---
 
-## Step 1: Clarification Questions
+## Step 1: Interview the User
 
-Before generating any files, ask the user 3-5 clarifying questions in A/B/C/D format. Cover these areas:
+You MUST ask clarifying questions before generating any files. Present questions with lettered options for quick responses.
 
-### 1. Scope
-- A) Localized change (single file/module)
-- B) Cross-module changes (multiple related files)
-- C) Cross-cutting concern (affects many parts of codebase)
-- D) Greenfield (new feature from scratch)
+**Interview approach:**
+1. Present 3-5 questions covering scope, constraints, and validation
+2. Use A/B/C/D multiple choice format for quick answers
+3. Allow the user to respond with shorthand like "1A, 2C, 3B"
+4. Ask follow-up questions if answers are unclear
 
-### 2. Risk Tolerance
-- A) Conservative - minimal changes, maximum safety
-- B) Balanced - reasonable refactoring allowed
-- C) Aggressive - significant refactoring acceptable
-- D) Experimental - prototype/spike, can be discarded
+**Example interview:**
 
-### 3. Tech Constraints
-- A) Must use existing patterns/libraries only
-- B) Can introduce new patterns if justified
-- C) Can add new dependencies if needed
-- D) No constraints - use best solution
+> I'll help you plan this feature. First, let me ask a few questions:
+>
+> **1. Scope** - How broad is this change?
+> - A) Single file/module
+> - B) Multiple related files  
+> - C) Cross-cutting (many parts of codebase)
+> - D) Greenfield (new feature from scratch)
+>
+> **2. Risk tolerance** - How aggressive should changes be?
+> - A) Conservative - minimal changes
+> - B) Balanced - reasonable refactoring OK
+> - C) Aggressive - significant refactoring acceptable
+>
+> **3. Validation** - How should we verify the implementation?
+> - A) Existing test suite
+> - B) Add new tests
+> - C) Manual testing sufficient
+>
+> Reply with your choices (e.g., "1B, 2A, 3B") or answer in your own words.
 
-### 4. Dependencies
-- A) No external dependencies
-- B) Known dependencies documented in plan
-- C) Dependencies to be discovered
-- D) Blocked by other work in progress
-
-### 5. Validation Approach
-- A) Existing test suite only
-- B) Add new unit tests
-- C) Add integration tests
-- D) Manual validation sufficient
-
-**Example output:**
-```
-Before I generate the implementation plan, please answer these questions:
-
-1. **Scope**: How broad is this change?
-   A) Localized (single file/module)
-   B) Cross-module (multiple related files)
-   C) Cross-cutting (affects many parts)
-   D) Greenfield (new feature from scratch)
-
-2. **Risk tolerance**: How aggressive should refactoring be?
-   A) Conservative - minimal changes
-   B) Balanced - reasonable refactoring
-   C) Aggressive - significant refactoring OK
-   D) Experimental - prototype/spike
-
-3. **Tech constraints**: What's allowed?
-   A) Existing patterns/libraries only
-   B) New patterns if justified
-   C) New dependencies if needed
-   D) No constraints
-
-Reply with format: `1A, 2B, 3C`
-```
-
-Wait for user response in format like `1A, 2C, 3B`.
+**WAIT for user response before proceeding.**
 
 ---
 
-## Step 2: Optional Oracle Review
+## Step 2: Oracle Review (Optional)
 
-After receiving clarification answers, ask:
+After receiving answers, offer to analyze the codebase:
 
-> Reply `oracle` to run architectural review, or `skip` to proceed with generation.
+> Would you like me to analyze the codebase architecture before generating the plan?
+> - Reply **oracle** for architectural analysis
+> - Reply **skip** to proceed directly
 
-### If user replies `oracle`:
-1. Use the Oracle tool to analyze the codebase architecture relevant to the feature
-2. Present any additional clarifying questions based on Oracle's findings
-3. Wait for user response before proceeding
+### If user chooses `oracle`:
+1. Use the Oracle tool to analyze relevant code areas
+2. Identify existing patterns, potential conflicts, dependencies
+3. Present findings and any additional clarifying questions
+4. **WAIT for user response before proceeding**
 
-### If user replies `skip`:
+### If user chooses `skip`:
 Proceed directly to Step 3.
 
 ---

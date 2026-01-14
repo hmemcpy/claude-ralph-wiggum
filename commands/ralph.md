@@ -1,6 +1,6 @@
 # Ralph Planning Command
 
-Interactive planning for iterative AI-driven development.
+Interactive planning for iterative AI-driven development. This command interviews the user to gather requirements before generating implementation files.
 
 ## Input
 
@@ -11,57 +11,57 @@ $ARGUMENTS
 
 ---
 
-## Step 1: Clarification Questions
+## Step 1: Interview the User
 
-Before generating any files, ask 3-5 clarifying questions in A/B/C/D format:
+You MUST ask clarifying questions before generating any files. Present questions with lettered options for quick responses.
 
-```
-Before I generate the implementation plan, please answer these questions:
+**Interview approach:**
+1. Present 3-5 questions covering scope, constraints, and validation
+2. Use A/B/C/D multiple choice format for quick answers
+3. Allow the user to respond with shorthand like "1A, 2C, 3B"
+4. Ask follow-up questions if answers are unclear
 
-1. **Scope**: How broad is this change?
-   A) Localized (single file/module)
-   B) Cross-module (multiple related files)
-   C) Cross-cutting (affects many parts)
-   D) Greenfield (new feature from scratch)
+**Example interview:**
 
-2. **Risk tolerance**: How aggressive should refactoring be?
-   A) Conservative - minimal changes
-   B) Balanced - reasonable refactoring
-   C) Aggressive - significant refactoring OK
-   D) Experimental - prototype/spike
+> I'll help you plan this feature. First, let me ask a few questions:
+>
+> **1. Scope** - How broad is this change?
+> - A) Single file/module
+> - B) Multiple related files  
+> - C) Cross-cutting (many parts of codebase)
+> - D) Greenfield (new feature from scratch)
+>
+> **2. Risk tolerance** - How aggressive should changes be?
+> - A) Conservative - minimal changes
+> - B) Balanced - reasonable refactoring OK
+> - C) Aggressive - significant refactoring acceptable
+>
+> **3. Validation** - How should we verify the implementation?
+> - A) Existing test suite
+> - B) Add new tests
+> - C) Manual testing sufficient
+>
+> Reply with your choices (e.g., "1B, 2A, 3B") or answer in your own words.
 
-3. **Tech constraints**: What's allowed?
-   A) Existing patterns/libraries only
-   B) New patterns if justified
-   C) New dependencies if needed
-   D) No constraints
-
-4. **Validation approach**: How should we verify?
-   A) Existing test suite only
-   B) Add new unit tests
-   C) Add integration tests
-   D) Manual validation sufficient
-
-Reply with format: `1A, 2B, 3C, 4A`
-```
-
-**WAIT** for user response in format like `1A, 2C, 3B, 4D` before proceeding.
+**WAIT for user response before proceeding.**
 
 ---
 
-## Step 2: Optional Deep Analysis
+## Step 2: Deep Analysis (Optional)
 
-After receiving clarification answers, ask:
+After receiving answers, offer to analyze the codebase:
 
-> Reply `analyze` to run deep codebase analysis with Opus, or `skip` to proceed with generation.
+> Would you like me to analyze the codebase architecture before generating the plan?
+> - Reply **analyze** for deep analysis with subagents
+> - Reply **skip** to proceed directly
 
-### If user replies `analyze`:
-1. Use parallel subagents with Opus model to analyze the codebase
-2. Focus on areas relevant to the feature
-3. Present any additional clarifying questions based on findings
-4. **WAIT** for user response before proceeding
+### If user chooses `analyze`:
+1. Use parallel subagents to analyze relevant code areas
+2. Identify existing patterns, potential conflicts, dependencies
+3. Present findings and any additional clarifying questions
+4. **WAIT for user response before proceeding**
 
-### If user replies `skip`:
+### If user chooses `skip`:
 Proceed directly to Step 3.
 
 ---
