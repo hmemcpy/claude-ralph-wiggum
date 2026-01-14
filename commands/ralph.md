@@ -78,7 +78,7 @@ Extract:
 
 ## Step 4: Generate Files
 
-Generate the following files, **always overwriting** existing files:
+**Always overwrite existing files** — specs, plan, prompt, and loop script are ephemeral and meant to be regenerated.
 
 ### 1. `specs/<feature-slug>.md`
 
