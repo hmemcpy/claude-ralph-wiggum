@@ -34,6 +34,10 @@ Provide a path to a feature document, or let it auto-discover in `docs/`:
 /skill ralph
 ```
 
+## File Writing Behavior
+
+**Always overwrite existing files** when generating ralph files (specs, plans, prompts, loop scripts). These files are ephemeral and meant to be regenerated. Do not prompt to confirm overwriting, do not rename files, and do not create numbered variants.
+
 ## Amp-Specific Features
 
 This skill leverages Amp's unique tools:
