@@ -262,14 +262,8 @@ countdown() {
 
 is_usage_limit_error() {
   local output="$1"
-  
+
   if [[ "$output" =~ "You've hit your limit" ]]; then
-    return 0
-  fi
-  if [[ "$output" =~ \"type\":\"rate_limit_error\" ]]; then
-    return 0
-  fi
-  if [[ "$output" =~ \"type\":\"overloaded_error\" ]]; then
     return 0
   fi
   if [[ "$output" =~ Error:\ 429 ]] || [[ "$output" =~ Error:\ 529 ]]; then
@@ -280,20 +274,6 @@ is_usage_limit_error() {
 
 get_sleep_duration() {
   local output="$1"
-
-  local json_reset=$(echo "$output" | grep -oE '"resetsAt"\s*:\s*"[^"]+"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-  if [[ -n "$json_reset" ]]; then
-    local reset_epoch=$(date -jf "%Y-%m-%dT%H:%M:%S%z" "$json_reset" +%s 2>/dev/null || \
-                        date -d "$json_reset" +%s 2>/dev/null)
-    if [[ -n "$reset_epoch" ]]; then
-      local now=$(date +%s)
-      local diff=$((reset_epoch - now))
-      if [[ $diff -gt 0 ]]; then
-        echo $((diff + 60))
-        return
-      fi
-    fi
-  fi
 
   if [[ "$output" =~ "try again in "([0-9]+)" minute" ]]; then
     echo $(( ${BASH_REMATCH[1]} * 60 + 60 ))
@@ -352,19 +332,10 @@ while true; do
 
   claude -p \
     --dangerously-skip-permissions \
+    --print \
     --model opus \
-    --output-format stream-json \
     --verbose \
-    <<< "$(cat "$PROMPT_FILE")" 2>&1 | tee "$TEMP_OUTPUT" | jq -r '
-      if .type == "assistant" then
-        .message.content[] |
-        if .type == "text" then .text
-        elif .type == "tool_use" then "    [" + .name + "]"
-        else empty end
-      elif .type == "result" then
-        "--- " + ((.duration_ms / 1000 * 10 | floor / 10) | tostring) + "s, " + (.num_turns | tostring) + " turns ---"
-      else empty end
-    ' 2>/dev/null
+    <<< "$(cat "$PROMPT_FILE")" 2>&1 | tee "$TEMP_OUTPUT"
 
   EXIT_CODE=$?
   OUTPUT=$(cat "$TEMP_OUTPUT")
