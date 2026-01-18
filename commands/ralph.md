@@ -129,21 +129,15 @@ Generate with this content (replace `[VALIDATION_COMMAND]` with actual command):
 
 Implement ONE task from the plan, validate, commit, exit.
 
-## Tools
-
-- **Parallel subagents**: Up to 500 for searches/reads
-- **Opus subagents**: Complex reasoning during implementation
-
 ## Phase 0: Orient
 
-Read:
-- @AGENTS.md or @CLAUDE.md (project rules)
-- @IMPLEMENTATION_PLAN.md (current state)
+Study with up to 500 parallel Sonnet subagents:
+- @AGENTS.md or @CLAUDE.md (how to build/test)
 - @specs/* (requirements)
+- @IMPLEMENTATION_PLAN.md (current state)
 
 ### Check for completion
 
-Run:
 ```bash
 grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 ```
@@ -153,15 +147,24 @@ grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 
 ## Phase 1: Implement
 
-1. **Search first** — Use parallel subagents to verify the behavior doesn't already exist
-2. **Implement** — ONE task only (use Opus subagents for complex reasoning)
-3. **Validate** — Run `[VALIDATION_COMMAND]`, must pass
+1. **Study the plan** — Choose the most important task from @IMPLEMENTATION_PLAN.md
+2. **Search first** — Don't assume not implemented. Use up to 500 parallel Sonnet subagents to verify behavior doesn't already exist
+3. **Implement** — ONE task only. Implement completely — no placeholders or stubs. Use Opus subagents for complex reasoning
+4. **Validate** — Run `[VALIDATION_COMMAND]`, must pass before continuing. Use only 1 subagent for build/tests
 
-## Phase 2: Update Plan
+If stuck, use Opus subagent with ultrathink to debug. Add extra logging if needed.
 
-In `IMPLEMENTATION_PLAN.md`:
+## Phase 2: Update & Learn
+
+**Update IMPLEMENTATION_PLAN.md** (using a subagent):
 - Mark task `- [x] Completed`
-- Add discovered tasks if any
+- Add discovered bugs or issues (even if unrelated to current task)
+- Note any new tasks discovered
+- Periodically clean out completed items when file gets large
+
+**Update AGENTS.md** (using a subagent, if you learned something new):
+- Add correct commands discovered through trial and error
+- Keep it brief and operational only — no status updates or progress notes
 
 ## Phase 3: Commit & Exit
 
@@ -169,7 +172,7 @@ In `IMPLEMENTATION_PLAN.md`:
 git add -A && git commit -m "feat([scope]): [description]"
 ```
 
-Run completion check again:
+Check remaining:
 ```bash
 grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 ```
@@ -179,10 +182,13 @@ grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 
 ## Guardrails
 
-- ONE task per iteration
-- Search before implementing
-- Validation MUST pass
-- Never output RALPH_COMPLETE if tasks remain
+99999. When authoring documentation, capture the why — tests and implementation importance.
+999999. Single sources of truth, no migrations/adapters. If tests unrelated to your work fail, resolve them as part of the increment.
+9999999. Implement functionality completely. Placeholders and stubs waste time redoing the same work.
+99999999. Keep @IMPLEMENTATION_PLAN.md current with learnings using a subagent — future iterations depend on this to avoid duplicating efforts.
+999999999. Keep @AGENTS.md operational only — status updates and progress notes pollute every future loop's context.
+9999999999. For any bugs you notice, resolve them or document them in @IMPLEMENTATION_PLAN.md using a subagent even if unrelated to current work.
+99999999999. ONE task per iteration. Search before implementing. Validation MUST pass. Never output RALPH_COMPLETE if tasks remain.
 ```
 
 ### 4. `loop.sh`
@@ -200,7 +206,6 @@ set -e
 MAX_ITERATIONS=0
 ITERATION=0
 CONSECUTIVE_FAILURES=0
-MAX_CONSECUTIVE_FAILURES=3
 
 # Colors
 RED='\033[0;31m'
@@ -394,13 +399,12 @@ while true; do
     echo ""
     echo -e "${RED}=== Error (exit code: $EXIT_CODE) ===${NC}"
 
-    if [[ $CONSECUTIVE_FAILURES -ge $MAX_CONSECUTIVE_FAILURES ]]; then
-      echo -e "${RED}Too many consecutive failures ($CONSECUTIVE_FAILURES). Stopping.${NC}"
-      exit 1
-    fi
+    # Exponential backoff: 30s, 60s, 120s, 240s, max 300s (5min)
+    BACKOFF=$((30 * (2 ** (CONSECUTIVE_FAILURES - 1))))
+    [[ $BACKOFF -gt 300 ]] && BACKOFF=300
 
-    echo -e "${YELLOW}Retrying in 30 seconds... (failure $CONSECUTIVE_FAILURES/$MAX_CONSECUTIVE_FAILURES)${NC}"
-    sleep 30
+    echo -e "${YELLOW}Retrying in ${BACKOFF}s... (consecutive failures: $CONSECUTIVE_FAILURES)${NC}"
+    countdown $BACKOFF "Waiting..."
     ITERATION=$((ITERATION - 1))
     continue
   fi

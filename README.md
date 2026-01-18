@@ -92,11 +92,12 @@ chmod +x loop.sh
 
 ## Loop Features
 
-- **Build-only**: Planning is interactive, loop only builds
-- **Rate limit handling**: Detects API limits and waits with countdown timer
-- **Error recovery**: Retries on transient failures (max 3 consecutive)
+- **Autonomous**: Runs until `RALPH_COMPLETE` — never stops on its own
+- **Self-healing**: Exponential backoff on errors (30s→60s→120s→max 5min), never gives up
+- **Rate limit handling**: Detects API limits, parses timezone, waits with countdown timer
+- **Self-learning**: Agent updates AGENTS.md with operational discoveries
 - **Thread tracking**: Commits include thread URL for traceability
-- **Completion detection**: Exits when agent outputs `RALPH_COMPLETE`
+- **Completion detection**: Exits only when agent outputs `RALPH_COMPLETE`
 
 ## Agent-Specific Features
 
@@ -113,11 +114,13 @@ chmod +x loop.sh
 
 ## Core Principles
 
-1. **Interactive Planning** - Clarifying questions before generation
-2. **One Task Per Iteration** - Maximize context for that task
-3. **Backpressure** - Validation must pass before commit
-4. **Search First** - Don't assume functionality doesn't exist
-5. **Let Ralph Ralph** - Agent determines approach
+1. **One Task Per Iteration** - Fresh context, maximum focus
+2. **Search First** - Don't assume not implemented
+3. **Implement Completely** - No placeholders or stubs
+4. **Backpressure** - Validation must pass before commit
+5. **Self-Learning** - Update AGENTS.md with operational discoveries
+6. **Self-Healing** - Document bugs even if unrelated to current work
+7. **Let Ralph Ralph** - Agent determines approach, loop never stops
 
 ## Project Structure
 
@@ -129,7 +132,6 @@ ralph-wiggum/
 ├── skills/
 │   └── ralph/
 │       └── SKILL.md        # Amp skill
-├── SKILL.md                # Root skill
 ├── install.sh              # Installer for both agents
 └── README.md
 ```

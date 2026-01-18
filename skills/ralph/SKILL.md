@@ -1,6 +1,8 @@
 ---
 name: ralph
 description: Interactive planning skill for Amp. Generates specs, implementation plans, and loop infrastructure through clarifying questions.
+allowed-tools:
+  - "*"
 ---
 
 # Ralph Planning Skill
@@ -73,7 +75,7 @@ Proceed directly to Step 3.
 
 ## Step 3: Generate Files
 
-**Always overwrite existing files** — specs, plan, prompt, and loop script are ephemeral and meant to be regenerated.
+**Always overwrite existing files** — never add suffixes like `-v2`, `-new`, or `_backup`. These files are ephemeral and meant to be regenerated. Use the exact filenames specified below.
 
 ### 1. `specs/<feature-slug>.md`
 
@@ -119,23 +121,15 @@ Generate with this exact content (replace `[VALIDATION_COMMAND]` with the approp
 
 Implement ONE task from the plan, validate, commit, exit.
 
-## Tools
-
-- **finder**: Semantic code discovery (use before implementing)
-- **Task**: Parallel file operations
-- **Oracle**: Debug complex issues
-- **Librarian**: External library docs
-
 ## Phase 0: Orient
 
-Read:
-- @AGENTS.md (project rules)
-- @IMPLEMENTATION_PLAN.md (current state)
+Study:
+- @AGENTS.md (how to build/test)
 - @specs/* (requirements)
+- @IMPLEMENTATION_PLAN.md (current state)
 
 ### Check for completion
 
-Run:
 ```bash
 grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 ```
@@ -145,17 +139,24 @@ grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 
 ## Phase 1: Implement
 
-1. **Search first** — Use finder to verify the behavior doesn't already exist
-2. **Implement** — ONE task only (use Task for parallel independent work)
-3. **Validate** — Run `[VALIDATION_COMMAND]`, must pass
+1. **Study the plan** — Choose the most important task from @IMPLEMENTATION_PLAN.md
+2. **Search first** — Don't assume not implemented. Use finder to verify behavior doesn't already exist
+3. **Implement** — ONE task only. Implement completely — no placeholders or stubs
+4. **Validate** — Run `[VALIDATION_COMMAND]`, must pass before continuing
 
-If stuck, use Oracle to debug.
+If stuck, use Oracle to debug. Add extra logging if needed.
 
-## Phase 2: Update Plan
+## Phase 2: Update & Learn
 
-In `IMPLEMENTATION_PLAN.md`:
+**Update IMPLEMENTATION_PLAN.md:**
 - Mark task `- [x] Completed`
-- Add discovered tasks if any
+- Add discovered bugs or issues (even if unrelated to current task)
+- Note any new tasks discovered
+- Periodically clean out completed items when file gets large
+
+**Update AGENTS.md** (if you learned something new):
+- Add correct commands discovered through trial and error
+- Keep it brief and operational only — no status updates or progress notes
 
 ## Phase 3: Commit & Exit
 
@@ -165,7 +166,7 @@ git add -A && git commit -m "feat([scope]): [description]
 Thread: $AMP_THREAD_URL"
 ```
 
-Run completion check again:
+Check remaining:
 ```bash
 grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 ```
@@ -175,10 +176,13 @@ grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 
 ## Guardrails
 
-- ONE task per iteration
-- Search before implementing
-- Validation MUST pass
-- Never output RALPH_COMPLETE if tasks remain
+99999. When authoring documentation, capture the why — tests and implementation importance.
+999999. Single sources of truth, no migrations/adapters. If tests unrelated to your work fail, resolve them as part of the increment.
+9999999. Implement functionality completely. Placeholders and stubs waste time redoing the same work.
+99999999. Keep @IMPLEMENTATION_PLAN.md current with learnings — future iterations depend on this to avoid duplicating efforts.
+999999999. Keep @AGENTS.md operational only — status updates and progress notes pollute every future loop's context.
+9999999999. For any bugs you notice, resolve them or document them in @IMPLEMENTATION_PLAN.md even if unrelated to current work.
+99999999999. ONE task per iteration. Search before implementing. Validation MUST pass. Never output RALPH_COMPLETE if tasks remain.
 ```
 
 ### 4. `loop.sh`
@@ -197,7 +201,6 @@ FEATURE_NAME="[FEATURE_NAME]"
 MAX_ITERATIONS=0
 ITERATION=0
 CONSECUTIVE_FAILURES=0
-MAX_CONSECUTIVE_FAILURES=3
 PARENT_THREAD_FILE=$(mktemp)
 
 # Colors
@@ -467,13 +470,12 @@ while true; do
     echo ""
     echo -e "${RED}=== Error (exit code: $EXIT_CODE) ===${NC}"
 
-    if [[ $CONSECUTIVE_FAILURES -ge $MAX_CONSECUTIVE_FAILURES ]]; then
-      echo -e "${RED}Too many consecutive failures ($CONSECUTIVE_FAILURES). Stopping.${NC}"
-      exit 1
-    fi
+    # Exponential backoff: 30s, 60s, 120s, 240s, max 300s (5min)
+    BACKOFF=$((30 * (2 ** (CONSECUTIVE_FAILURES - 1))))
+    [[ $BACKOFF -gt 300 ]] && BACKOFF=300
 
-    echo -e "${YELLOW}Retrying in 30 seconds... (failure $CONSECUTIVE_FAILURES/$MAX_CONSECUTIVE_FAILURES)${NC}"
-    sleep 30
+    echo -e "${YELLOW}Retrying in ${BACKOFF}s... (consecutive failures: $CONSECUTIVE_FAILURES)${NC}"
+    countdown $BACKOFF "Waiting..."
     ITERATION=$((ITERATION - 1))
     continue
   fi
