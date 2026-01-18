@@ -264,6 +264,18 @@ countdown() {
 }
 
 is_recoverable_error() {
+  local output="$1"
+
+  # Check JSON error field from stream-json output
+  if [[ "$output" =~ \"error\":\"rate_limit\" ]]; then
+    return 0
+  fi
+  if [[ "$output" =~ "You've hit your limit" ]]; then
+    return 0
+  fi
+  if [[ "$output" =~ Error:\ 429 ]] || [[ "$output" =~ Error:\ 529 ]]; then
+    return 0
+  fi
   return 1
 }
 
@@ -304,6 +316,33 @@ get_sleep_duration() {
     return
   fi
 
+  # Parse "resets Xpm" or "resets Xam" with optional timezone
+  if [[ "$output" =~ resets[[:space:]]+([0-9]+)(am|pm) ]]; then
+    local reset_hour="${BASH_REMATCH[1]}"
+    local ampm="${BASH_REMATCH[2]}"
+    local tz="UTC"
+    if [[ "$output" =~ \(([A-Za-z_/]+)\) ]]; then
+      tz="${BASH_REMATCH[1]}"
+    fi
+    
+    # Convert to 24-hour format
+    if [[ "$ampm" == "pm" && "$reset_hour" -ne 12 ]]; then
+      reset_hour=$((reset_hour + 12))
+    elif [[ "$ampm" == "am" && "$reset_hour" -eq 12 ]]; then
+      reset_hour=0
+    fi
+    
+    local now=$(date +%s)
+    local target=$(TZ="$tz" date -v${reset_hour}H -v0M -v0S +%s 2>/dev/null || TZ="$tz" date -d "today ${reset_hour}:00:00" +%s)
+    
+    if [[ $now -ge $target ]]; then
+      target=$((target + 86400))
+    fi
+    
+    echo $((target - now + 60))
+    return
+  fi
+
   echo 300
 }
 
@@ -316,7 +355,11 @@ handle_recoverable_error() {
   echo -e "${YELLOW}Waiting before retry...${NC}"
   echo ""
 
-  local resume_time=$(date -v+${sleep_duration}S "+%Y-%m-%d %H:%M:%S" 2>/dev/null || date -d "+${sleep_duration} seconds" "+%Y-%m-%d %H:%M:%S")
+  local tz="UTC"
+  if [[ "$output" =~ \(([A-Za-z_/]+)\) ]]; then
+    tz="${BASH_REMATCH[1]}"
+  fi
+  local resume_time=$(TZ="$tz" date -v+${sleep_duration}S "+%Y-%m-%d %H:%M:%S" 2>/dev/null || TZ="$tz" date -d "+${sleep_duration} seconds" "+%Y-%m-%d %H:%M:%S")
   echo -e "Expected resume: ${CYAN}${resume_time}${NC}"
   echo ""
 
