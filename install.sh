@@ -17,63 +17,34 @@ echo ""
 # Claude Code plugin installation
 echo -e "${CYAN}=== Claude Code ===${NC}"
 
-CLAUDE_PLUGINS_DIR="$HOME/.claude/plugins"
-CACHE_DIR="$CLAUDE_PLUGINS_DIR/cache/ralph-wiggum-local/ralph-wiggum/latest"
+if command -v claude &> /dev/null; then
+  echo -e "${GREEN}Installing plugin via Claude CLI...${NC}"
 
-echo -e "${GREEN}Installing plugin to $CACHE_DIR${NC}"
-
-# Create cache directory
-mkdir -p "$CACHE_DIR"
-
-# Copy plugin files
-cp -r "$SCRIPT_DIR/.claude-plugin" "$CACHE_DIR/"
-cp -r "$SCRIPT_DIR/commands" "$CACHE_DIR/"
-
-# Update installed_plugins.json
-INSTALLED_PLUGINS="$CLAUDE_PLUGINS_DIR/installed_plugins.json"
-
-if [[ -f "$INSTALLED_PLUGINS" ]]; then
-  # Check if already installed
-  if grep -q "ralph-wiggum@ralph-wiggum-local" "$INSTALLED_PLUGINS"; then
-    echo "  Plugin already registered, updating files..."
+  # Add local directory as marketplace (idempotent - safe to run multiple times)
+  if claude plugin marketplace add "$SCRIPT_DIR" 2>/dev/null; then
+    echo "  Marketplace registered: $SCRIPT_DIR"
   else
-    # Add to installed plugins using jq if available, otherwise manual
-    if command -v jq &> /dev/null; then
-      jq '.plugins["ralph-wiggum@ralph-wiggum-local"] = [{
-        "scope": "user",
-        "installPath": "'"$CACHE_DIR"'",
-        "version": "latest",
-        "installedAt": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'",
-        "lastUpdated": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
-      }]' "$INSTALLED_PLUGINS" > "${INSTALLED_PLUGINS}.tmp" && mv "${INSTALLED_PLUGINS}.tmp" "$INSTALLED_PLUGINS"
-      echo "  Plugin registered in installed_plugins.json"
-    else
-      echo -e "${YELLOW}  jq not found - please register plugin manually via /plugin${NC}"
-    fi
+    echo "  Marketplace already registered or updated"
+  fi
+
+  # Install the plugin to user scope
+  if claude plugin install ralph-wiggum@ralph-wiggum --scope user 2>/dev/null; then
+    echo -e "${GREEN}  Plugin installed successfully!${NC}"
+  else
+    echo -e "${YELLOW}  Plugin may already be installed, or installation failed${NC}"
+    echo "  Try manually: /plugin install ralph-wiggum@ralph-wiggum"
   fi
 else
-  # Create new installed_plugins.json
-  mkdir -p "$CLAUDE_PLUGINS_DIR"
-  cat > "$INSTALLED_PLUGINS" << EOF
-{
-  "version": 2,
-  "plugins": {
-    "ralph-wiggum@ralph-wiggum-local": [
-      {
-        "scope": "user",
-        "installPath": "$CACHE_DIR",
-        "version": "latest",
-        "installedAt": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
-        "lastUpdated": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
-      }
-    ]
-  }
-}
-EOF
-  echo "  Created installed_plugins.json"
+  echo -e "${YELLOW}Claude CLI not found. Manual installation required:${NC}"
+  echo ""
+  echo "  1. Start Claude Code"
+  echo "  2. Run: /plugin marketplace add $SCRIPT_DIR"
+  echo "  3. Run: /plugin install ralph-wiggum@ralph-wiggum"
+  echo ""
+  echo "  Or for testing without installing:"
+  echo "  claude --plugin-dir $SCRIPT_DIR"
 fi
 
-echo -e "${GREEN}Done!${NC}"
 echo ""
 
 # Amp skill installation
