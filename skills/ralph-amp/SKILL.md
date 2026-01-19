@@ -112,12 +112,64 @@ Tasks should be:
 - Include file paths when known
 - Self-contained with sufficient context
 
-### 3. `PROMPT.md`
+### 3. `PROMPT_plan.md`
 
-Generate with this exact content (replace `[VALIDATION_COMMAND]` with the appropriate command from AGENTS.md or project config):
+Generate with this content (replace `[DIRECTORIES]` with relevant source directories):
 
 ```markdown
-# Ralph Build Mode
+# Planning Mode
+
+You are in PLANNING mode. Analyze specifications against existing code and generate a prioritized implementation plan.
+
+## Phase 0: Orient
+
+### 0a. Study specifications
+Read all files in `specs/` directory using finder and parallel reads.
+
+### 0b. Study existing implementation
+Use finder to analyze relevant source directories:
+[DIRECTORIES]
+
+### 0c. Study the current plan
+Read `IMPLEMENTATION_PLAN.md` if it exists.
+
+## Phase 1: Gap Analysis
+
+Compare specs against implementation:
+- What's already implemented?
+- What's missing?
+- What's partially done?
+
+**CRITICAL**: Don't assume something isn't implemented. Use finder to search the codebase first.
+
+## Phase 2: Generate Plan
+
+Update `IMPLEMENTATION_PLAN.md` with:
+- Tasks sorted by priority (P0 → P1 → P2)
+- Clear descriptions with file locations
+- Dependencies noted where relevant
+- Discoveries from gap analysis
+
+Capture the WHY, not just the WHAT.
+
+## Phase 3: Exit
+
+After updating the plan, output **RALPH_COMPLETE** and exit.
+
+## Guardrails
+
+999. NEVER implement code in planning mode
+1000. Use Task tool for parallel analysis of different areas
+1001. Each task must be completable in ONE loop iteration
+1002. Use Oracle to review priorities before finalizing
+```
+
+### 4. `PROMPT_build.md`
+
+Generate with this content (replace `[VALIDATION_COMMAND]` with the appropriate command from AGENTS.md or project config):
+
+```markdown
+# Build Mode
 
 Implement ONE task from the plan, validate, commit, exit.
 
@@ -185,7 +237,7 @@ grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 99999999999. ONE task per iteration. Search before implementing. Validation MUST pass. Never output RALPH_COMPLETE if tasks remain.
 ```
 
-### 4. `loop.sh`
+### 5. `loop.sh`
 
 Generate with this content (replace `[FEATURE_NAME]` with a short kebab-case feature name like `auth-system` or `api-refactor`):
 
@@ -193,11 +245,18 @@ Generate with this content (replace `[FEATURE_NAME]` with a short kebab-case fea
 #!/bin/bash
 
 # Ralph Wiggum Build Loop (Amp)
-# Runs build iterations until RALPH_COMPLETE
+# Usage:
+#   ./loop.sh           # Auto mode: plan first, then build (default)
+#   ./loop.sh plan      # Planning mode only
+#   ./loop.sh build     # Build mode only
+#   ./loop.sh 10        # Auto mode, max 10 build iterations
+#   ./loop.sh build 5   # Build mode, max 5 iterations
 
 set -e
 
 FEATURE_NAME="[FEATURE_NAME]"
+MODE="plan"
+AUTO_MODE=true
 MAX_ITERATIONS=0
 ITERATION=0
 CONSECUTIVE_FAILURES=0
@@ -211,16 +270,22 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 for arg in "$@"; do
-  if [[ "$arg" =~ ^[0-9]+$ ]]; then
+  if [[ "$arg" == "plan" ]]; then
+    MODE="plan"
+    AUTO_MODE=false
+  elif [[ "$arg" == "build" ]]; then
+    MODE="build"
+    AUTO_MODE=false
+  elif [[ "$arg" =~ ^[0-9]+$ ]]; then
     MAX_ITERATIONS=$arg
   fi
 done
 
-PROMPT_FILE="PROMPT.md"
+PROMPT_FILE="PROMPT_${MODE}.md"
 
 if [[ ! -f "$PROMPT_FILE" ]]; then
   echo -e "${RED}Error: $PROMPT_FILE not found${NC}"
-  echo "Run the ralph skill first to generate the required files."
+  echo "Run the ralph-amp skill first to generate the required files."
   exit 1
 fi
 
@@ -228,6 +293,15 @@ cleanup() {
   rm -f "$PARENT_THREAD_FILE"
 }
 trap cleanup EXIT
+
+switch_to_build_mode() {
+  echo ""
+  echo -e "${CYAN}=== Switching to Build Mode ===${NC}"
+  echo ""
+  MODE="build"
+  PROMPT_FILE="PROMPT_${MODE}.md"
+  ITERATION=0
+}
 
 seconds_until_next_hour() {
   local now=$(date +%s)
@@ -268,12 +342,13 @@ countdown() {
 
 is_recoverable_error() {
   local output="$1"
+  local exit_code="$2"
 
   # Check JSON error field from stream-json output
   if [[ "$output" =~ \"error\":\"rate_limit\" ]]; then
     return 0
   fi
-  if [[ "$output" =~ "You've hit your limit" ]]; then
+  if [[ "$output" =~ "rate limit" ]] || [[ "$output" =~ "Rate limit" ]]; then
     return 0
   fi
   if [[ "$output" =~ Error:\ 429 ]] || [[ "$output" =~ Error:\ 529 ]]; then
@@ -319,7 +394,6 @@ get_sleep_duration() {
     return
   fi
 
-  # Parse "resets Xpm" or "resets Xam" with optional timezone
   if [[ "$output" =~ resets[[:space:]]+([0-9]+)(am|pm) ]]; then
     local reset_hour="${BASH_REMATCH[1]}"
     local ampm="${BASH_REMATCH[2]}"
@@ -328,7 +402,6 @@ get_sleep_duration() {
       tz="${BASH_REMATCH[1]}"
     fi
     
-    # Convert to 24-hour format
     if [[ "$ampm" == "pm" && "$reset_hour" -ne 12 ]]; then
       reset_hour=$((reset_hour + 12))
     elif [[ "$ampm" == "am" && "$reset_hour" -eq 12 ]]; then
@@ -375,15 +448,25 @@ handle_recoverable_error() {
   CONSECUTIVE_FAILURES=0
 }
 
-echo -e "${GREEN}Ralph Build Loop (Amp)${NC}"
-[[ $MAX_ITERATIONS -gt 0 ]] && echo "Max iterations: $MAX_ITERATIONS"
+if [[ "$AUTO_MODE" == true ]]; then
+  echo -e "${GREEN}Ralph loop: AUTO mode (plan → build)${NC}"
+  [[ $MAX_ITERATIONS -gt 0 ]] && echo "Max build iterations: $MAX_ITERATIONS"
+else
+  echo -e "${GREEN}Ralph loop: $(echo "$MODE" | tr '[:lower:]' '[:upper:]') mode${NC}"
+  [[ $MAX_ITERATIONS -gt 0 ]] && echo "Max iterations: $MAX_ITERATIONS"
+fi
 echo "Press Ctrl+C to stop"
 echo "---"
 
 while true; do
   ITERATION=$((ITERATION + 1))
   echo ""
-  echo -e "${GREEN}=== Build Iteration $ITERATION ===${NC}"
+  MODE_DISPLAY=$(echo "$MODE" | tr '[:lower:]' '[:upper:]')
+  if [[ "$AUTO_MODE" == true ]]; then
+    echo -e "${GREEN}=== ${MODE_DISPLAY} Iteration $ITERATION ===${NC}"
+  else
+    echo -e "${GREEN}=== Iteration $ITERATION ===${NC}"
+  fi
   echo ""
 
   TEMP_OUTPUT=$(mktemp)
@@ -391,7 +474,6 @@ while true; do
   set +e
 
   if [[ -n "$PARENT_THREAD" ]]; then
-    # Create child thread via handoff from parent
     echo -e "${CYAN}Creating handoff from parent ${PARENT_THREAD}...${NC}"
     
     cat "$PROMPT_FILE" | amp threads handoff "$PARENT_THREAD" \
@@ -400,14 +482,11 @@ while true; do
       --dangerously-allow-all \
       --stream-json > "$TEMP_OUTPUT" 2>&1
   else
-    # First iteration: create parent thread
     amp -x --dangerously-allow-all --stream-json < "$PROMPT_FILE" > "$TEMP_OUTPUT" 2>&1
   fi
 
-  # Extract thread ID from JSON output
   THREAD_ID=$(jq -r 'select(.type == "system") | .session_id' "$TEMP_OUTPUT" 2>/dev/null | head -1)
 
-  # Display progress
   cat "$TEMP_OUTPUT" | jq -r '
       def tool_info:
         if .name == "edit_file" or .name == "create_file" or .name == "Read" then
@@ -445,16 +524,13 @@ while true; do
   rm -f "$TEMP_OUTPUT"
   set -e
 
-  # Name/rename thread
   if [[ -n "$THREAD_ID" ]]; then
     if [[ -z "$PARENT_THREAD" ]]; then
-      # First iteration: save as parent, name it
       echo "$THREAD_ID" > "$PARENT_THREAD_FILE"
-      amp threads rename "$THREAD_ID" "ralph: ${FEATURE_NAME} (parent)" 2>/dev/null || true
+      amp threads rename "$THREAD_ID" "ralph: ${FEATURE_NAME} ${MODE} (parent)" 2>/dev/null || true
       echo -e "${CYAN}Parent thread: $THREAD_ID${NC}"
     else
-      # Child iteration: name it
-      amp threads rename "$THREAD_ID" "ralph: ${FEATURE_NAME} #${ITERATION}" 2>/dev/null || true
+      amp threads rename "$THREAD_ID" "ralph: ${FEATURE_NAME} ${MODE} #${ITERATION}" 2>/dev/null || true
       echo -e "${CYAN}Child thread: $THREAD_ID${NC}"
     fi
   fi
@@ -470,7 +546,6 @@ while true; do
     echo ""
     echo -e "${RED}=== Error (exit code: $EXIT_CODE) ===${NC}"
 
-    # Exponential backoff: 30s, 60s, 120s, 240s, max 300s (5min)
     BACKOFF=$((30 * (2 ** (CONSECUTIVE_FAILURES - 1))))
     [[ $BACKOFF -gt 300 ]] && BACKOFF=300
 
@@ -482,14 +557,27 @@ while true; do
 
   CONSECUTIVE_FAILURES=0
 
-  if [[ "$RESULT_MSG" =~ "RALPH_COMPLETE" ]]; then
+  if [[ "$RESULT_MSG" =~ "RALPH_COMPLETE" ]] || [[ "$OUTPUT" =~ "RALPH_COMPLETE" ]]; then
     echo ""
     echo -e "${GREEN}=== Ralph Complete ===${NC}"
+
+    if [[ "$AUTO_MODE" == true && "$MODE" == "plan" ]]; then
+      # Reset parent thread for build phase
+      rm -f "$PARENT_THREAD_FILE"
+      switch_to_build_mode
+      continue
+    fi
+
     echo -e "${GREEN}All tasks finished.${NC}"
     break
   fi
 
   if [[ $MAX_ITERATIONS -gt 0 && $ITERATION -ge $MAX_ITERATIONS ]]; then
+    if [[ "$AUTO_MODE" == true && "$MODE" == "plan" ]]; then
+      rm -f "$PARENT_THREAD_FILE"
+      switch_to_build_mode
+      continue
+    fi
     echo ""
     echo -e "${GREEN}Reached max iterations ($MAX_ITERATIONS).${NC}"
     break
@@ -516,13 +604,19 @@ After generating all files, tell the user:
 > **Files generated:**
 > - `specs/<feature-slug>.md` - Requirements specification
 > - `IMPLEMENTATION_PLAN.md` - Task list with checkboxes
-> - `PROMPT.md` - Build mode instructions
-> - `loop.sh` - Build loop script
+> - `PROMPT_plan.md` - Planning mode instructions
+> - `PROMPT_build.md` - Build mode instructions
+> - `loop.sh` - Dual-mode build loop script
+>
+> **Usage:**
+> - `./loop.sh` - Auto mode: plan first, then build
+> - `./loop.sh plan` - Planning mode only
+> - `./loop.sh build` - Build mode only
+> - `./loop.sh build 10` - Build mode, max 10 iterations
 >
 > **Thread organization:**
-> - First iteration creates parent thread: `ralph: <feature-name> (parent)`
-> - Subsequent iterations use `amp threads handoff` to create linked children
-> - Child threads named: `ralph: <feature-name> #N`
+> - Each phase creates its own parent thread
+> - Child threads named: `ralph: <feature-name> <mode> #N`
 > - View thread hierarchy at https://ampcode.com/threads
 >
-> **Next step:** Run `./loop.sh` to start the build loop.
+> **Next step:** Run `./loop.sh` to start the loop.

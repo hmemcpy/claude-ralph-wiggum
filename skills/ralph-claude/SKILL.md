@@ -122,12 +122,64 @@ Tasks should be:
 - Include file paths when known
 - Self-contained with sufficient context
 
-### 3. `PROMPT.md`
+### 3. `PROMPT_plan.md`
+
+Generate with this content (replace `[DIRECTORIES]` with relevant source directories):
+
+```markdown
+# Planning Mode
+
+You are in PLANNING mode. Analyze specifications against existing code and generate a prioritized implementation plan.
+
+## Phase 0: Orient
+
+### 0a. Study specifications
+Read all files in `specs/` directory using parallel subagents.
+
+### 0b. Study existing implementation
+Use parallel subagents to analyze relevant source directories:
+[DIRECTORIES]
+
+### 0c. Study the current plan
+Read `IMPLEMENTATION_PLAN.md` if it exists.
+
+## Phase 1: Gap Analysis
+
+Compare specs against implementation:
+- What's already implemented?
+- What's missing?
+- What's partially done?
+
+**CRITICAL**: Don't assume something isn't implemented. Search the codebase first.
+
+## Phase 2: Generate Plan
+
+Update `IMPLEMENTATION_PLAN.md` with:
+- Tasks sorted by priority (P0 → P1 → P2)
+- Clear descriptions with file locations
+- Dependencies noted where relevant
+- Discoveries from gap analysis
+
+Capture the WHY, not just the WHAT.
+
+## Phase 3: Exit
+
+After updating the plan, output **RALPH_COMPLETE** and exit.
+
+## Guardrails
+
+999. NEVER implement code in planning mode
+1000. Use up to 10 parallel subagents for analysis
+1001. Each task must be completable in ONE loop iteration
+1002. Ultrathink before finalizing priorities
+```
+
+### 4. `PROMPT_build.md`
 
 Generate with this content (replace `[VALIDATION_COMMAND]` with actual command):
 
 ```markdown
-# Ralph Build Mode
+# Build Mode
 
 Implement ONE task from the plan, validate, commit, exit.
 
@@ -193,18 +245,25 @@ grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 99999999999. ONE task per iteration. Search before implementing. Validation MUST pass. Never output RALPH_COMPLETE if tasks remain.
 ```
 
-### 4. `loop.sh`
+### 5. `loop.sh`
 
-Generate the build loop script:
+Generate the dual-mode build loop script:
 
 ```bash
 #!/bin/bash
 
 # Ralph Wiggum Build Loop (Claude)
-# Runs build iterations until RALPH_COMPLETE
+# Usage:
+#   ./loop.sh           # Auto mode: plan first, then build (default)
+#   ./loop.sh plan      # Planning mode only
+#   ./loop.sh build     # Build mode only
+#   ./loop.sh 10        # Auto mode, max 10 build iterations
+#   ./loop.sh build 5   # Build mode, max 5 iterations
 
 set -e
 
+MODE="plan"
+AUTO_MODE=true
 MAX_ITERATIONS=0
 ITERATION=0
 CONSECUTIVE_FAILURES=0
@@ -217,18 +276,33 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 for arg in "$@"; do
-  if [[ "$arg" =~ ^[0-9]+$ ]]; then
+  if [[ "$arg" == "plan" ]]; then
+    MODE="plan"
+    AUTO_MODE=false
+  elif [[ "$arg" == "build" ]]; then
+    MODE="build"
+    AUTO_MODE=false
+  elif [[ "$arg" =~ ^[0-9]+$ ]]; then
     MAX_ITERATIONS=$arg
   fi
 done
 
-PROMPT_FILE="PROMPT.md"
+PROMPT_FILE="PROMPT_${MODE}.md"
 
 if [[ ! -f "$PROMPT_FILE" ]]; then
   echo -e "${RED}Error: $PROMPT_FILE not found${NC}"
   echo "Run the ralph-claude skill first to generate the required files."
   exit 1
 fi
+
+switch_to_build_mode() {
+  echo ""
+  echo -e "${CYAN}=== Switching to Build Mode ===${NC}"
+  echo ""
+  MODE="build"
+  PROMPT_FILE="PROMPT_${MODE}.md"
+  ITERATION=0
+}
 
 seconds_until_next_hour() {
   local now=$(date +%s)
@@ -297,7 +371,6 @@ get_sleep_duration() {
     return
   fi
 
-  # Parse "resets Xpm" or "resets Xam" with optional timezone
   if [[ "$output" =~ resets[[:space:]]+([0-9]+)(am|pm) ]]; then
     local reset_hour="${BASH_REMATCH[1]}"
     local ampm="${BASH_REMATCH[2]}"
@@ -306,7 +379,6 @@ get_sleep_duration() {
       tz="${BASH_REMATCH[1]}"
     fi
 
-    # Convert to 24-hour format
     if [[ "$ampm" == "pm" && "$reset_hour" -ne 12 ]]; then
       reset_hour=$((reset_hour + 12))
     elif [[ "$ampm" == "am" && "$reset_hour" -eq 12 ]]; then
@@ -354,15 +426,25 @@ handle_usage_limit() {
   CONSECUTIVE_FAILURES=0
 }
 
-echo -e "${GREEN}Ralph Build Loop (Claude)${NC}"
-[[ $MAX_ITERATIONS -gt 0 ]] && echo "Max iterations: $MAX_ITERATIONS"
+if [[ "$AUTO_MODE" == true ]]; then
+  echo -e "${GREEN}Ralph loop: AUTO mode (plan → build)${NC}"
+  [[ $MAX_ITERATIONS -gt 0 ]] && echo "Max build iterations: $MAX_ITERATIONS"
+else
+  echo -e "${GREEN}Ralph loop: $(echo "$MODE" | tr '[:lower:]' '[:upper:]') mode${NC}"
+  [[ $MAX_ITERATIONS -gt 0 ]] && echo "Max iterations: $MAX_ITERATIONS"
+fi
 echo "Press Ctrl+C to stop"
 echo "---"
 
 while true; do
   ITERATION=$((ITERATION + 1))
   echo ""
-  echo -e "${GREEN}=== Build Iteration $ITERATION ===${NC}"
+  MODE_DISPLAY=$(echo "$MODE" | tr '[:lower:]' '[:upper:]')
+  if [[ "$AUTO_MODE" == true ]]; then
+    echo -e "${GREEN}=== ${MODE_DISPLAY} Iteration $ITERATION ===${NC}"
+  else
+    echo -e "${GREEN}=== Iteration $ITERATION ===${NC}"
+  fi
   echo ""
 
   TEMP_OUTPUT=$(mktemp)
@@ -388,7 +470,6 @@ while true; do
     echo ""
     echo -e "${RED}=== Error (exit code: $EXIT_CODE) ===${NC}"
 
-    # Exponential backoff: 30s, 60s, 120s, 240s, max 300s (5min)
     BACKOFF=$((30 * (2 ** (CONSECUTIVE_FAILURES - 1))))
     [[ $BACKOFF -gt 300 ]] && BACKOFF=300
 
@@ -403,11 +484,21 @@ while true; do
   if [[ "$OUTPUT" =~ "RALPH_COMPLETE" ]]; then
     echo ""
     echo -e "${GREEN}=== Ralph Complete ===${NC}"
+
+    if [[ "$AUTO_MODE" == true && "$MODE" == "plan" ]]; then
+      switch_to_build_mode
+      continue
+    fi
+
     echo -e "${GREEN}All tasks finished.${NC}"
     break
   fi
 
   if [[ $MAX_ITERATIONS -gt 0 && $ITERATION -ge $MAX_ITERATIONS ]]; then
+    if [[ "$AUTO_MODE" == true && "$MODE" == "plan" ]]; then
+      switch_to_build_mode
+      continue
+    fi
     echo ""
     echo -e "${GREEN}Reached max iterations ($MAX_ITERATIONS).${NC}"
     break
@@ -434,7 +525,14 @@ After generating all files, tell the user:
 > **Files generated:**
 > - `specs/<feature-slug>.md` - Requirements specification
 > - `IMPLEMENTATION_PLAN.md` - Task list with checkboxes
-> - `PROMPT.md` - Build mode instructions
-> - `loop.sh` - Build loop script
+> - `PROMPT_plan.md` - Planning mode instructions
+> - `PROMPT_build.md` - Build mode instructions
+> - `loop.sh` - Dual-mode build loop script
 >
-> **Next step:** Run `./loop.sh` to start the build loop.
+> **Usage:**
+> - `./loop.sh` - Auto mode: plan first, then build
+> - `./loop.sh plan` - Planning mode only
+> - `./loop.sh build` - Build mode only
+> - `./loop.sh build 10` - Build mode, max 10 iterations
+>
+> **Next step:** Run `./loop.sh` to start the loop.
