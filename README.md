@@ -50,7 +50,7 @@ Restart your agent for changes to take effect.
 ### Amp
 
 ```bash
-/skill ralph [optional/path/to/plan.md]
+/skill ralph-amp [optional/path/to/plan.md]
 ```
 
 The skill will:
@@ -61,11 +61,11 @@ The skill will:
 ### Claude Code
 
 ```bash
-/ralph-wiggum:ralph [optional/path/to/plan.md]
+/skill ralph-claude [optional/path/to/plan.md]
 ```
 
-The command will:
-1. Use Plan Mode + `AskUserQuestion` to interview you
+The skill will:
+1. Use `AskUserQuestion` to interview you
 2. Optionally run `ultrathink` for deep analysis
 3. Generate all files
 
@@ -127,11 +127,11 @@ chmod +x loop.sh
 ```
 ralph-wiggum/
 ├── .claude-plugin/         # Claude Code plugin manifest
-├── commands/
-│   └── ralph.md            # Claude Code command
 ├── skills/
-│   └── ralph/
-│       └── SKILL.md        # Amp skill
+│   ├── ralph-amp/
+│   │   └── SKILL.md        # Amp skill
+│   └── ralph-claude/
+│       └── SKILL.md        # Claude Code skill
 ├── install.sh              # Installer for both agents
 └── README.md
 ```

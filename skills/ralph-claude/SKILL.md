@@ -1,17 +1,17 @@
 ---
-name: ralph
-description: Interactive planning skill for Amp. Generates specs, implementation plans, and loop infrastructure through clarifying questions.
+name: ralph-claude
+description: Interactive planning skill for Claude Code. Generates specs, implementation plans, and loop infrastructure through clarifying questions.
 allowed-tools:
   - "*"
 ---
 
-# Ralph Planning Skill
+# Ralph Planning Skill (Claude)
 
 Generate specs, implementation plans, and loop infrastructure for iterative AI-driven development.
 
 ## Entry
 
-**Usage:** `/skill ralph [optional/path/to/plan.md]`
+**Usage:** `/skill ralph-claude [optional/path/to/plan.md]`
 
 - If path provided: Read that `.md` file as the source specification
 - If no path: Use the current conversation context
@@ -20,7 +20,7 @@ Generate specs, implementation plans, and loop infrastructure for iterative AI-d
 
 ## Step 1: Interview the User
 
-You MUST ask clarifying questions before generating any files. Present questions with lettered options for quick responses.
+Use the `AskUserQuestion` tool to gather requirements. Present questions with lettered options for quick responses.
 
 **Interview approach:**
 1. Present 3-5 questions covering scope, constraints, and validation
@@ -28,42 +28,38 @@ You MUST ask clarifying questions before generating any files. Present questions
 3. Allow the user to respond with shorthand like "1A, 2C, 3B"
 4. Ask follow-up questions if answers are unclear
 
-**Example interview:**
+**Example questions to ask:**
 
-> I'll help you plan this feature. First, let me ask a few questions:
->
-> **1. Scope** - How broad is this change?
-> - A) Single file/module
-> - B) Multiple related files  
-> - C) Cross-cutting (many parts of codebase)
-> - D) Greenfield (new feature from scratch)
->
-> **2. Risk tolerance** - How aggressive should changes be?
-> - A) Conservative - minimal changes
-> - B) Balanced - reasonable refactoring OK
-> - C) Aggressive - significant refactoring acceptable
->
-> **3. Validation** - How should we verify the implementation?
-> - A) Existing test suite
-> - B) Add new tests
-> - C) Manual testing sufficient
->
-> Reply with your choices (e.g., "1B, 2A, 3B") or answer in your own words.
+1. **Scope** - How broad is this change?
+   - A) Single file/module
+   - B) Multiple related files
+   - C) Cross-cutting (many parts of codebase)
+   - D) Greenfield (new feature from scratch)
+
+2. **Risk tolerance** - How aggressive should changes be?
+   - A) Conservative - minimal changes
+   - B) Balanced - reasonable refactoring OK
+   - C) Aggressive - significant refactoring acceptable
+
+3. **Validation** - How should we verify the implementation?
+   - A) Existing test suite
+   - B) Add new tests
+   - C) Manual testing sufficient
 
 **WAIT for user response before proceeding.**
 
 ---
 
-## Step 2: Oracle Review (Optional)
+## Step 2: Deep Analysis (Optional)
 
-After receiving answers, offer to analyze the codebase:
+After receiving answers, offer deeper analysis:
 
 > Would you like me to analyze the codebase architecture before generating the plan?
-> - Reply **oracle** for architectural analysis
+> - Reply **ultrathink** for deep analysis with extended thinking
 > - Reply **skip** to proceed directly
 
-### If user chooses `oracle`:
-1. Use the Oracle tool to analyze relevant code areas
+### If user chooses `ultrathink`:
+1. Use extended thinking to deeply analyze relevant code areas
 2. Identify existing patterns, potential conflicts, dependencies
 3. Present findings and any additional clarifying questions
 4. **WAIT for user response before proceeding**
@@ -73,7 +69,21 @@ Proceed directly to Step 3.
 
 ---
 
-## Step 3: Generate Files
+## Step 3: Discover Project Context
+
+Read these files to understand the project:
+- `AGENTS.md` or `CLAUDE.md` - project rules and commands
+- `package.json`, `Cargo.toml`, `go.mod`, or equivalent - build system
+- Existing `specs/` if any - current state
+
+Extract:
+- **Validation command** (e.g., `npm test`, `cargo test`, `go test ./...`)
+- **Code patterns** to follow
+- **Path conventions**
+
+---
+
+## Step 4: Generate Files
 
 **Always overwrite existing files** — never add suffixes like `-v2`, `-new`, or `_backup`. These files are ephemeral and meant to be regenerated. Use the exact filenames specified below.
 
@@ -81,7 +91,7 @@ Proceed directly to Step 3.
 
 Requirements specification containing:
 - Feature overview
-- User stories
+- User stories with checkboxes
 - Acceptance criteria
 - Edge cases and error handling
 - Out of scope items
@@ -114,7 +124,7 @@ Tasks should be:
 
 ### 3. `PROMPT.md`
 
-Generate with this exact content (replace `[VALIDATION_COMMAND]` with the appropriate command from AGENTS.md or project config):
+Generate with this content (replace `[VALIDATION_COMMAND]` with actual command):
 
 ```markdown
 # Ralph Build Mode
@@ -123,8 +133,8 @@ Implement ONE task from the plan, validate, commit, exit.
 
 ## Phase 0: Orient
 
-Study:
-- @AGENTS.md (how to build/test)
+Study with subagents:
+- @AGENTS.md or @CLAUDE.md (how to build/test)
 - @specs/* (requirements)
 - @IMPLEMENTATION_PLAN.md (current state)
 
@@ -140,11 +150,11 @@ grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 ## Phase 1: Implement
 
 1. **Study the plan** — Choose the most important task from @IMPLEMENTATION_PLAN.md
-2. **Search first** — Don't assume not implemented. Use finder to verify behavior doesn't already exist
+2. **Search first** — Don't assume not implemented. Verify behavior doesn't already exist
 3. **Implement** — ONE task only. Implement completely — no placeholders or stubs
 4. **Validate** — Run `[VALIDATION_COMMAND]`, must pass before continuing
 
-If stuck, use Oracle to debug. Add extra logging if needed.
+If stuck, use extended thinking to debug. Add extra logging if needed.
 
 ## Phase 2: Update & Learn
 
@@ -161,9 +171,7 @@ If stuck, use Oracle to debug. Add extra logging if needed.
 ## Phase 3: Commit & Exit
 
 ```bash
-git add -A && git commit -m "feat([scope]): [description]
-
-Thread: $AMP_THREAD_URL"
+git add -A && git commit -m "feat([scope]): [description]"
 ```
 
 Check remaining:
@@ -187,21 +195,19 @@ grep -c "^\- \[ \]" IMPLEMENTATION_PLAN.md || echo 0
 
 ### 4. `loop.sh`
 
-Generate with this content (replace `[FEATURE_NAME]` with a short kebab-case feature name like `auth-system` or `api-refactor`):
+Generate the build loop script:
 
 ```bash
 #!/bin/bash
 
-# Ralph Wiggum Build Loop (Amp)
+# Ralph Wiggum Build Loop (Claude)
 # Runs build iterations until RALPH_COMPLETE
 
 set -e
 
-FEATURE_NAME="[FEATURE_NAME]"
 MAX_ITERATIONS=0
 ITERATION=0
 CONSECUTIVE_FAILURES=0
-PARENT_THREAD_FILE=$(mktemp)
 
 # Colors
 RED='\033[0;31m'
@@ -220,14 +226,9 @@ PROMPT_FILE="PROMPT.md"
 
 if [[ ! -f "$PROMPT_FILE" ]]; then
   echo -e "${RED}Error: $PROMPT_FILE not found${NC}"
-  echo "Run the ralph skill first to generate the required files."
+  echo "Run the ralph-claude skill first to generate the required files."
   exit 1
 fi
-
-cleanup() {
-  rm -f "$PARENT_THREAD_FILE"
-}
-trap cleanup EXIT
 
 seconds_until_next_hour() {
   local now=$(date +%s)
@@ -266,13 +267,9 @@ countdown() {
   printf "\r%-80s\r" " "
 }
 
-is_recoverable_error() {
+is_usage_limit_error() {
   local output="$1"
 
-  # Check JSON error field from stream-json output
-  if [[ "$output" =~ \"error\":\"rate_limit\" ]]; then
-    return 0
-  fi
   if [[ "$output" =~ "You've hit your limit" ]]; then
     return 0
   fi
@@ -284,25 +281,6 @@ is_recoverable_error() {
 
 get_sleep_duration() {
   local output="$1"
-
-  local json_reset=$(echo "$output" | grep -oE '"resetsAt"\s*:\s*"[^"]+"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-  if [[ -n "$json_reset" ]]; then
-    local reset_epoch=$(date -jf "%Y-%m-%dT%H:%M:%S%z" "$json_reset" +%s 2>/dev/null || \
-                        date -d "$json_reset" +%s 2>/dev/null)
-    if [[ -n "$reset_epoch" ]]; then
-      local now=$(date +%s)
-      local diff=$((reset_epoch - now))
-      if [[ $diff -gt 0 ]]; then
-        echo $((diff + 60))
-        return
-      fi
-    fi
-  fi
-
-  if [[ "$output" =~ retry.after[[:space:]]*:?[[:space:]]*([0-9]+) ]]; then
-    echo "${BASH_REMATCH[1]}"
-    return
-  fi
 
   if [[ "$output" =~ "try again in "([0-9]+)" minute" ]]; then
     echo $(( ${BASH_REMATCH[1]} * 60 + 60 ))
@@ -327,35 +305,36 @@ get_sleep_duration() {
     if [[ "$output" =~ \(([A-Za-z_/]+)\) ]]; then
       tz="${BASH_REMATCH[1]}"
     fi
-    
+
     # Convert to 24-hour format
     if [[ "$ampm" == "pm" && "$reset_hour" -ne 12 ]]; then
       reset_hour=$((reset_hour + 12))
     elif [[ "$ampm" == "am" && "$reset_hour" -eq 12 ]]; then
       reset_hour=0
     fi
-    
+
     local now=$(date +%s)
     local target=$(TZ="$tz" date -v${reset_hour}H -v0M -v0S +%s 2>/dev/null || TZ="$tz" date -d "today ${reset_hour}:00:00" +%s)
-    
+
     if [[ $now -ge $target ]]; then
       target=$((target + 86400))
     fi
-    
+
     echo $((target - now + 60))
     return
   fi
 
-  echo 300
+  local wait_time=$(seconds_until_next_hour)
+  echo $((wait_time + 60))
 }
 
-handle_recoverable_error() {
+handle_usage_limit() {
   local output="$1"
   local sleep_duration=$(get_sleep_duration "$output")
 
   echo ""
-  echo -e "${YELLOW}=== Recoverable Error Detected ===${NC}"
-  echo -e "${YELLOW}Waiting before retry...${NC}"
+  echo -e "${YELLOW}=== Usage Limit Detected ===${NC}"
+  echo -e "${YELLOW}Waiting for reset...${NC}"
   echo ""
 
   local tz="UTC"
@@ -375,7 +354,7 @@ handle_recoverable_error() {
   CONSECUTIVE_FAILURES=0
 }
 
-echo -e "${GREEN}Ralph Build Loop (Amp)${NC}"
+echo -e "${GREEN}Ralph Build Loop (Claude)${NC}"
 [[ $MAX_ITERATIONS -gt 0 ]] && echo "Max iterations: $MAX_ITERATIONS"
 echo "Press Ctrl+C to stop"
 echo "---"
@@ -387,80 +366,19 @@ while true; do
   echo ""
 
   TEMP_OUTPUT=$(mktemp)
-  PARENT_THREAD=$(cat "$PARENT_THREAD_FILE" 2>/dev/null || true)
   set +e
 
-  if [[ -n "$PARENT_THREAD" ]]; then
-    # Create child thread via handoff from parent
-    echo -e "${CYAN}Creating handoff from parent ${PARENT_THREAD}...${NC}"
-    
-    cat "$PROMPT_FILE" | amp threads handoff "$PARENT_THREAD" \
-      --goal "$(cat "$PROMPT_FILE")" \
-      -x \
-      --dangerously-allow-all \
-      --stream-json > "$TEMP_OUTPUT" 2>&1
-  else
-    # First iteration: create parent thread
-    amp -x --dangerously-allow-all --stream-json < "$PROMPT_FILE" > "$TEMP_OUTPUT" 2>&1
-  fi
-
-  # Extract thread ID from JSON output
-  THREAD_ID=$(jq -r 'select(.type == "system") | .session_id' "$TEMP_OUTPUT" 2>/dev/null | head -1)
-
-  # Display progress
-  cat "$TEMP_OUTPUT" | jq -r '
-      def tool_info:
-        if .name == "edit_file" or .name == "create_file" or .name == "Read" then
-          (.input.path | split("/") | last | .[0:60])
-        elif .name == "todo_write" then
-          ((.input.todos // []) | map(.content) | join(", ") | if contains("\n") then .[0:60] else . end)
-        elif .name == "Bash" then
-          (.input.cmd | if contains("\n") then split("\n") | first | .[0:50] else .[0:80] end)
-        elif .name == "Grep" then
-          (.input.pattern | .[0:40])
-        elif .name == "glob" then
-          (.input.filePattern | .[0:40])
-        elif .name == "finder" then
-          (.input.query | if contains("\n") then .[0:40] else . end)
-        elif .name == "oracle" then
-          (.input.task | if contains("\n") then .[0:40] else .[0:80] end)
-        elif .name == "Task" then
-          (.input.description // .input.prompt | if contains("\n") then .[0:40] else .[0:80] end)
-        else null end;
-      if .type == "assistant" then
-        .message.content[] |
-        if .type == "text" then
-          if (.text | split("\n") | length) <= 3 then .text else empty end
-        elif .type == "tool_use" then
-          "    [" + .name + "]" + (tool_info | if . then " " + . else "" end)
-        else empty end
-      elif .type == "result" then
-        "--- " + ((.duration_ms / 1000 * 10 | floor / 10) | tostring) + "s, " + (.num_turns | tostring) + " turns ---"
-      else empty end
-    ' 2>/dev/null
+  claude --print \
+    --dangerously-skip-permissions \
+    < "$PROMPT_FILE" 2>&1 | tee "$TEMP_OUTPUT"
 
   EXIT_CODE=$?
   OUTPUT=$(cat "$TEMP_OUTPUT")
-  RESULT_MSG=$(jq -r 'select(.type == "result") | .result // empty' "$TEMP_OUTPUT" 2>/dev/null | tail -1)
   rm -f "$TEMP_OUTPUT"
   set -e
 
-  # Name/rename thread
-  if [[ -n "$THREAD_ID" ]]; then
-    if [[ -z "$PARENT_THREAD" ]]; then
-      # First iteration: save as parent, name it
-      echo "$THREAD_ID" > "$PARENT_THREAD_FILE"
-      amp threads rename "$THREAD_ID" "ralph: ${FEATURE_NAME} (parent)" 2>/dev/null || true
-      echo -e "${CYAN}Parent thread: $THREAD_ID${NC}"
-    else
-      # Child iteration: name it
-      amp threads rename "$THREAD_ID" "ralph: ${FEATURE_NAME} #${ITERATION}" 2>/dev/null || true
-      echo -e "${CYAN}Child thread: $THREAD_ID${NC}"
-    fi
-  fi
-
-  if is_recoverable_error "$OUTPUT" "$EXIT_CODE"; then
-    handle_recoverable_error "$OUTPUT"
+  if is_usage_limit_error "$OUTPUT"; then
+    handle_usage_limit "$OUTPUT"
     ITERATION=$((ITERATION - 1))
     continue
   fi
@@ -482,7 +400,7 @@ while true; do
 
   CONSECUTIVE_FAILURES=0
 
-  if [[ "$RESULT_MSG" =~ "RALPH_COMPLETE" ]]; then
+  if [[ "$OUTPUT" =~ "RALPH_COMPLETE" ]]; then
     echo ""
     echo -e "${GREEN}=== Ralph Complete ===${NC}"
     echo -e "${GREEN}All tasks finished.${NC}"
@@ -509,7 +427,7 @@ chmod +x loop.sh
 
 ---
 
-## End: Next Steps
+## Step 5: Next Steps
 
 After generating all files, tell the user:
 
@@ -518,11 +436,5 @@ After generating all files, tell the user:
 > - `IMPLEMENTATION_PLAN.md` - Task list with checkboxes
 > - `PROMPT.md` - Build mode instructions
 > - `loop.sh` - Build loop script
->
-> **Thread organization:**
-> - First iteration creates parent thread: `ralph: <feature-name> (parent)`
-> - Subsequent iterations use `amp threads handoff` to create linked children
-> - Child threads named: `ralph: <feature-name> #N`
-> - View thread hierarchy at https://ampcode.com/threads
 >
 > **Next step:** Run `./loop.sh` to start the build loop.

@@ -43,7 +43,7 @@ mkdir -p "$CACHE_DIR"
 
 # Copy plugin files
 cp -r "$SCRIPT_DIR/.claude-plugin" "$CACHE_DIR/"
-cp -r "$SCRIPT_DIR/commands" "$CACHE_DIR/"
+cp -r "$SCRIPT_DIR/skills" "$CACHE_DIR/"
 
 # Update installed_plugins.json
 if [[ -f "$INSTALLED_PLUGINS" ]]; then
@@ -90,8 +90,8 @@ AMP_SKILL_DIR="$HOME/.config/agents/skills/ralph-wiggum"
 echo -e "${CYAN}=== Amp ===${NC}"
 echo -e "${GREEN}Installing Amp skill to $AMP_SKILL_DIR${NC}"
 mkdir -p "$AMP_SKILL_DIR"
-# Copy the detailed SKILL.md (from skills/ralph/) as the main skill file
-cp "$SCRIPT_DIR/skills/ralph/SKILL.md" "$AMP_SKILL_DIR/"
+# Copy the Amp skill
+cp "$SCRIPT_DIR/skills/ralph-amp/SKILL.md" "$AMP_SKILL_DIR/"
 cp "$SCRIPT_DIR/README.md" "$AMP_SKILL_DIR/"
 echo "  Done!"
 echo ""
@@ -101,5 +101,5 @@ echo ""
 echo "Restart Claude Code / Amp for changes to take effect."
 echo ""
 echo "Usage:"
-echo "  Claude Code: /ralph-wiggum:ralph"
-echo "  Amp:         /skill ralph"
+echo "  Claude Code: /skill ralph-claude"
+echo "  Amp:         /skill ralph-amp"
