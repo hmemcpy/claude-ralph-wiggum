@@ -451,11 +451,40 @@ while true; do
   set +e
 
   claude --print \
+    --output-format stream-json \
     --dangerously-skip-permissions \
-    < "$PROMPT_FILE" 2>&1 | tee "$TEMP_OUTPUT"
+    < "$PROMPT_FILE" 2>&1 | tee "$TEMP_OUTPUT" | sed 's/\x1b\[[0-9;]*m//g' | grep --line-buffered '^{' | jq --unbuffered -r '
+      def tool_info:
+        if .name == "Edit" or .name == "Write" or .name == "Read" then
+          (.input.file_path // .input.path | split("/") | last | .[0:60])
+        elif .name == "TodoWrite" then
+          ((.input.todos // []) | map(.content) | join(", ") | if contains("\n") then .[0:60] else . end)
+        elif .name == "Bash" then
+          (.input.command // .input.cmd | if contains("\n") then split("\n") | first | .[0:50] else .[0:80] end)
+        elif .name == "Grep" then
+          (.input.pattern | .[0:40])
+        elif .name == "Glob" then
+          (.input.pattern // .input.filePattern | .[0:40])
+        elif .name == "WebFetch" then
+          (.input.url | .[0:60])
+        elif .name == "Task" then
+          (.input.description // .input.prompt | if contains("\n") then .[0:40] else .[0:80] end)
+        else null end;
+      if .type == "assistant" then
+        .message.content[] |
+        if .type == "text" then
+          if (.text | split("\n") | length) <= 3 then .text else empty end
+        elif .type == "tool_use" then
+          "    [" + .name + "]" + (tool_info | if . then " " + . else "" end)
+        else empty end
+      elif .type == "result" then
+        "--- " + ((.duration_ms / 1000 * 10 | floor / 10) | tostring) + "s, " + (.num_turns | tostring) + " turns ---"
+      else empty end
+    ' 2>/dev/null
 
-  EXIT_CODE=$?
+  EXIT_CODE=${PIPESTATUS[0]}
   OUTPUT=$(cat "$TEMP_OUTPUT")
+  RESULT_MSG=$(sed 's/\x1b\[[0-9;]*m//g' "$TEMP_OUTPUT" | grep '^{' | jq -r 'select(.type == "result") | .result // empty' 2>/dev/null | tail -1)
   rm -f "$TEMP_OUTPUT"
   set -e
 
@@ -481,7 +510,7 @@ while true; do
 
   CONSECUTIVE_FAILURES=0
 
-  if [[ "$OUTPUT" =~ "RALPH_COMPLETE" ]]; then
+  if [[ "$RESULT_MSG" =~ "RALPH_COMPLETE" ]] || [[ "$OUTPUT" =~ "RALPH_COMPLETE" ]]; then
     echo ""
     echo -e "${GREEN}=== Ralph Complete ===${NC}"
 
