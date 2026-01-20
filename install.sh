@@ -18,53 +18,44 @@ echo ""
 echo -e "${CYAN}=== Claude Code ===${NC}"
 
 CLAUDE_PLUGINS_DIR="$HOME/.claude/plugins"
-CACHE_DIR="$CLAUDE_PLUGINS_DIR/cache/ralph-wiggum-local/ralph-wiggum/latest"
 INSTALLED_PLUGINS="$CLAUDE_PLUGINS_DIR/installed_plugins.json"
 
-# Remove old marketplace version if it exists
-OLD_MARKETPLACE_CACHE="$CLAUDE_PLUGINS_DIR/cache/ralph-wiggum"
-if [[ -d "$OLD_MARKETPLACE_CACHE" ]]; then
-  echo -e "${YELLOW}Removing old marketplace version...${NC}"
-  rm -rf "$OLD_MARKETPLACE_CACHE"
+# Find existing marketplace cache (any version)
+MARKETPLACE_CACHE=$(ls -d "$CLAUDE_PLUGINS_DIR/cache/ralph-wiggum/ralph-wiggum"/*/ 2>/dev/null | head -1)
+
+if [[ -n "$MARKETPLACE_CACHE" && -d "$MARKETPLACE_CACHE" ]]; then
+  echo -e "${GREEN}Updating marketplace cache at $MARKETPLACE_CACHE${NC}"
+  CACHE_DIR="$MARKETPLACE_CACHE"
+else
+  # Fall back to local install
+  CACHE_DIR="$CLAUDE_PLUGINS_DIR/cache/ralph-wiggum-local/ralph-wiggum/latest"
+  echo -e "${GREEN}Installing plugin to $CACHE_DIR${NC}"
+  mkdir -p "$CACHE_DIR"
 fi
-
-# Remove old marketplace entry from installed_plugins.json
-if [[ -f "$INSTALLED_PLUGINS" ]] && command -v jq &> /dev/null; then
-  if jq -e '.plugins["ralph-wiggum@ralph-wiggum"]' "$INSTALLED_PLUGINS" > /dev/null 2>&1; then
-    echo "  Removing old marketplace entry from installed_plugins.json..."
-    jq 'del(.plugins["ralph-wiggum@ralph-wiggum"])' "$INSTALLED_PLUGINS" > "${INSTALLED_PLUGINS}.tmp" && mv "${INSTALLED_PLUGINS}.tmp" "$INSTALLED_PLUGINS"
-  fi
-fi
-
-echo -e "${GREEN}Installing plugin to $CACHE_DIR${NC}"
-
-# Create cache directory
-mkdir -p "$CACHE_DIR"
 
 # Copy plugin files
 cp -r "$SCRIPT_DIR/.claude-plugin" "$CACHE_DIR/"
 mkdir -p "$CACHE_DIR/skills"
 cp -r "$SCRIPT_DIR/skills/ralph-claude" "$CACHE_DIR/skills/"
 
-# Update installed_plugins.json
-if [[ -f "$INSTALLED_PLUGINS" ]]; then
-  # Add/update the local plugin entry
-  if command -v jq &> /dev/null; then
-    jq '.plugins["ralph-wiggum@ralph-wiggum-local"] = [{
-      "scope": "user",
-      "installPath": "'"$CACHE_DIR"'",
-      "version": "latest",
-      "installedAt": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'",
-      "lastUpdated": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
-    }]' "$INSTALLED_PLUGINS" > "${INSTALLED_PLUGINS}.tmp" && mv "${INSTALLED_PLUGINS}.tmp" "$INSTALLED_PLUGINS"
-    echo "  Plugin registered in installed_plugins.json"
+# Only update installed_plugins.json if we created a new local install
+if [[ "$CACHE_DIR" == *"ralph-wiggum-local"* ]]; then
+  if [[ -f "$INSTALLED_PLUGINS" ]]; then
+    if command -v jq &> /dev/null; then
+      jq '.plugins["ralph-wiggum@ralph-wiggum-local"] = [{
+        "scope": "user",
+        "installPath": "'"$CACHE_DIR"'",
+        "version": "latest",
+        "installedAt": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'",
+        "lastUpdated": "'"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"'"
+      }]' "$INSTALLED_PLUGINS" > "${INSTALLED_PLUGINS}.tmp" && mv "${INSTALLED_PLUGINS}.tmp" "$INSTALLED_PLUGINS"
+      echo "  Plugin registered in installed_plugins.json"
+    else
+      echo -e "${YELLOW}  jq not found - please register plugin manually via /plugin${NC}"
+    fi
   else
-    echo -e "${YELLOW}  jq not found - please register plugin manually via /plugin${NC}"
-  fi
-else
-  # Create new installed_plugins.json
-  mkdir -p "$CLAUDE_PLUGINS_DIR"
-  cat > "$INSTALLED_PLUGINS" << EOF
+    mkdir -p "$CLAUDE_PLUGINS_DIR"
+    cat > "$INSTALLED_PLUGINS" << EOF
 {
   "version": 2,
   "plugins": {
@@ -80,7 +71,8 @@ else
   }
 }
 EOF
-  echo "  Created installed_plugins.json"
+    echo "  Created installed_plugins.json"
+  fi
 fi
 
 echo -e "${GREEN}Done!${NC}"
