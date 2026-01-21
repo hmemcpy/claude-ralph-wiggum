@@ -468,6 +468,7 @@ while true; do
   set +e
 
   claude --print \
+    --verbose \
     --output-format stream-json \
     --dangerously-skip-permissions \
     < "$PROMPT_FILE" 2>&1 | tee "$TEMP_OUTPUT" | sed 's/\x1b\[[0-9;]*m//g' | grep --line-buffered '^{' | jq --unbuffered -r '
@@ -515,6 +516,9 @@ while true; do
     CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
     echo ""
     echo -e "${RED}=== Error (exit code: $EXIT_CODE) ===${NC}"
+    echo -e "${RED}Output:${NC}"
+    echo "$OUTPUT" | tail -20
+    echo ""
 
     BACKOFF=$((30 * (2 ** (CONSECUTIVE_FAILURES - 1))))
     [[ $BACKOFF -gt 300 ]] && BACKOFF=300
