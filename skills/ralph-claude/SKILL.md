@@ -50,26 +50,7 @@ Use the `AskUserQuestion` tool to gather requirements. Present questions with le
 
 ---
 
-## Step 2: Deep Analysis (Optional)
-
-After receiving answers, offer deeper analysis:
-
-> Would you like me to analyze the codebase architecture before generating the plan?
-> - Reply **ultrathink** for deep analysis with extended thinking
-> - Reply **skip** to proceed directly
-
-### If user chooses `ultrathink`:
-1. Use extended thinking to deeply analyze relevant code areas
-2. Identify existing patterns, potential conflicts, dependencies
-3. Present findings and any additional clarifying questions
-4. **WAIT for user response before proceeding**
-
-### If user chooses `skip`:
-Proceed directly to Step 3.
-
----
-
-## Step 3: Discover Project Context
+## Step 2: Discover Project Context
 
 Read these files to understand the project:
 - `AGENTS.md` or `CLAUDE.md` - project rules and commands
@@ -83,7 +64,7 @@ Extract:
 
 ---
 
-## Step 4: Generate Files
+## Step 3: Generate Files
 
 **Always overwrite existing files** — never add suffixes like `-v2`, `-new`, or `_backup`. These files are ephemeral and meant to be regenerated. Use the exact filenames specified below.
 
@@ -173,8 +154,7 @@ Capture the WHY, not just the WHAT.
 999. NEVER implement code in planning mode
 1000. Use up to 10 parallel subagents for analysis
 1001. Each task must be completable in ONE loop iteration
-1002. Ultrathink before finalizing priorities
-1003. **ALWAYS use checkbox format `- [ ]` or `- [x]` for tasks in IMPLEMENTATION_PLAN.md** - The build loop relies on `grep -c "^\- \[ \]"` to count remaining tasks. Never use `####` headers or bold text without checkboxes.
+1002. **ALWAYS use checkbox format `- [ ]` or `- [x]` for tasks in IMPLEMENTATION_PLAN.md** - The build loop relies on `grep -c "^\- \[ \]"` to count remaining tasks. Never use `####` headers or bold text without checkboxes.
 ```
 
 ### 4. `PROMPT_build.md`
@@ -267,6 +247,7 @@ set -e
 
 MODE="plan"
 AUTO_MODE=true
+PLAN_MAX_ITERATIONS=5
 MAX_ITERATIONS=0
 ITERATION=0
 CONSECUTIVE_FAILURES=0
@@ -447,7 +428,7 @@ handle_usage_limit() {
 }
 
 if [[ "$AUTO_MODE" == true ]]; then
-  echo -e "${GREEN}Ralph loop: AUTO mode (plan → build)${NC}"
+  echo -e "${GREEN}Ralph loop: AUTO mode (plan ×${PLAN_MAX_ITERATIONS} → build)${NC}"
   [[ $MAX_ITERATIONS -gt 0 ]] && echo "Max build iterations: $MAX_ITERATIONS"
 else
   echo -e "${GREEN}Ralph loop: $(echo "$MODE" | tr '[:lower:]' '[:upper:]') mode${NC}"
@@ -534,24 +515,20 @@ while true; do
 
   CONSECUTIVE_FAILURES=0
 
+  # In auto mode, switch from plan to build after hitting plan cap
+  if [[ "$AUTO_MODE" == true && "$MODE" == "plan" && $ITERATION -ge $PLAN_MAX_ITERATIONS ]]; then
+    switch_to_build_mode
+    continue
+  fi
+
   if [[ "$RESULT_MSG" =~ "RALPH_COMPLETE" ]] || [[ "$OUTPUT" =~ "RALPH_COMPLETE" ]]; then
     echo ""
     echo -e "${GREEN}=== Ralph Complete ===${NC}"
-
-    if [[ "$AUTO_MODE" == true && "$MODE" == "plan" ]]; then
-      switch_to_build_mode
-      continue
-    fi
-
     echo -e "${GREEN}All tasks finished.${NC}"
     break
   fi
 
   if [[ $MAX_ITERATIONS -gt 0 && $ITERATION -ge $MAX_ITERATIONS ]]; then
-    if [[ "$AUTO_MODE" == true && "$MODE" == "plan" ]]; then
-      switch_to_build_mode
-      continue
-    fi
     echo ""
     echo -e "${GREEN}Reached max iterations ($MAX_ITERATIONS).${NC}"
     break
@@ -571,7 +548,7 @@ chmod +x loop.sh
 
 ---
 
-## Step 5: Next Steps
+## Step 4: Next Steps
 
 After generating all files, tell the user:
 

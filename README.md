@@ -29,7 +29,7 @@ An iterative AI development loop where a dumb bash script keeps restarting the A
 | Agent | CLI Command | Key Features |
 |-------|-------------|--------------|
 | **Amp** | `amp -x` | Oracle (planning/debug), Librarian (docs), finder (semantic search) |
-| **Claude Code** | `claude -p` | Plan Mode, AskUserQuestion, Extended Thinking |
+| **Claude Code** | `claude -p` | Plan Mode, AskUserQuestion, Subagents |
 
 ## Installation
 
@@ -66,8 +66,7 @@ The skill will:
 
 The skill will:
 1. Use `AskUserQuestion` to interview you
-2. Optionally run `ultrathink` for deep analysis
-3. Generate all files
+2. Generate all files
 
 ### Generated Files
 
@@ -109,7 +108,6 @@ chmod +x loop.sh
 
 ### Claude Code
 - **Plan Mode**: Read-only analysis with `AskUserQuestion` for requirements gathering
-- **Extended Thinking**: Use `ultrathink` keyword for deep reasoning
 - **Subagents**: Parallel analysis of code areas
 
 ## Core Principles
