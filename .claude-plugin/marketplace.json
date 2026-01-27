@@ -14,7 +14,7 @@
       "author": {
         "name": "hmemcpy"
       },
-      "source": "https://github.com/hmemcpy/ralph-wiggum",
+      "source": "./",
       "category": "development"
     }
   ]
