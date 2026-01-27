@@ -521,7 +521,7 @@ while true; do
     continue
   fi
 
-  if [[ "$RESULT_MSG" =~ "RALPH_COMPLETE" ]] || [[ "$OUTPUT" =~ "RALPH_COMPLETE" ]]; then
+  if [[ "$RESULT_MSG" =~ RALPH_COMPLETE ]]; then
     echo ""
     echo -e "${GREEN}=== Ralph Complete ===${NC}"
     echo -e "${GREEN}All tasks finished.${NC}"
