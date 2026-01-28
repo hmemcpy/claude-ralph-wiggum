@@ -426,7 +426,10 @@ get_sleep_duration() {
     return
   fi
 
-  echo 300
+  # Default: wait until next hour
+  local wait_time=$(seconds_until_next_hour)
+  [[ $wait_time -lt 300 ]] && wait_time=300
+  echo $wait_time
 }
 
 handle_recoverable_error() {
