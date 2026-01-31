@@ -1,6 +1,6 @@
 {
   "name": "ralph-wiggum",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Generate Ralph Wiggum loop infrastructure for iterative AI-driven development. Supports Claude Code and Amp with agent-specific optimizations.",
   "author": {
     "name": "hmemcpy"

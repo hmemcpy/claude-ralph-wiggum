@@ -50,7 +50,7 @@ Restart your agent for changes to take effect.
 ### Amp
 
 ```bash
-/skill ralph-amp [optional/path/to/plan.md]
+/skill ralph [optional/path/to/plan.md]
 ```
 
 The skill will:
@@ -61,7 +61,7 @@ The skill will:
 ### Claude Code
 
 ```bash
-/skill ralph-claude [optional/path/to/plan.md]
+/skill ralph [optional/path/to/plan.md]
 ```
 
 The skill will:
@@ -125,10 +125,11 @@ chmod +x loop.sh
 ```
 ralph-wiggum/
 ├── .claude-plugin/         # Claude Code plugin manifest
+├── agents/
+│   └── ralph/
+│       └── SKILL.md        # Amp skill
 ├── skills/
-│   ├── ralph-amp/
-│   │   └── SKILL.md        # Amp skill
-│   └── ralph-claude/
+│   └── ralph/
 │       └── SKILL.md        # Claude Code skill
 ├── install.sh              # Installer for both agents
 └── README.md

@@ -1,5 +1,5 @@
 ---
-name: ralph-amp
+name: ralph
 description: Interactive planning skill for Amp. Generates specs, implementation plans, and loop infrastructure through clarifying questions.
 allowed-tools:
   - "*"
@@ -11,7 +11,7 @@ Generate specs, implementation plans, and loop infrastructure for iterative AI-d
 
 ## Entry
 
-**Usage:** `/skill ralph-amp [optional/path/to/plan.md]`
+**Usage:** `/skill ralph [optional/path/to/plan.md]`
 
 - If path provided: Read that `.md` file as the source specification
 - If no path: Use the current conversation context
